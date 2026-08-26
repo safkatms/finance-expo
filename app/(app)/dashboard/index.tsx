@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,495 +6,606 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  Image,
-  ImageBackground,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { api } from "@/lib/axios";
+import { getDashboard } from "@/lib/api/dashboard.api";
 import { logout } from "@/lib/auth";
 import { useAuthStore } from "@/store/auth.store";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { colors } from "@/components/ui/theme";
-import type { ApiResponse } from "@/types/api";
+import type {
+  AccountBalance,
+  ActiveLoan,
+  RecentTransaction,
+  CategoryBreakdownItem,
+} from "@/types/finance";
 import Feather from "@expo/vector-icons/Feather";
 
-interface Metrics {
-  sales: number;
-  profit: number;
-}
-interface LastWeekMetrics extends Metrics {
-  payments: number;
-  returned: number;
-  due: number;
-}
-interface DashboardData {
-  currentWeekKey: string;
-  lastWeekKey: string;
-  today: Metrics;
-  week: Metrics;
-  lastWeek: LastWeekMetrics;
-  month: Metrics;
-  total: Metrics;
-}
+const fmt = (v: number) =>
+  `৳${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
-const fmt = (v = 0) => `৳${v.toLocaleString("en-US")}`;
+const ACCOUNT_TYPE_ICONS: Record<
+  string,
+  React.ComponentProps<typeof Feather>["name"]
+> = {
+  bank: "home",
+  mobile_banking: "smartphone",
+  cash: "dollar-sign",
+  card: "credit-card",
+  investment: "trending-up",
+  other: "circle",
+};
 
-// Colored rounded-square icon badge
-function IconBadge({
-  name,
-  bg,
-  color,
-}: {
-  name: React.ComponentProps<typeof Feather>["name"];
-  bg: string;
-  color: string;
-}) {
-  return (
-    <View style={[styles.iconBadge, { backgroundColor: bg }]}>
-      <Feather name={name} size={15} color={color} />
-    </View>
-  );
-}
+const TXN_TYPE_COLOR: Record<string, string> = {
+  Income: colors.green[500],
+  Expense: colors.red[500],
+  Transfer: colors.indigo[400],
+};
 
-function HeroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.heroStat}>
-      <Text style={styles.heroLabel}>{label}</Text>
-      <Text style={styles.heroValue}>{value}</Text>
-    </View>
-  );
-}
+// ── Sub-components ────────────────────────────────────────────
 
-function MetricRow({
-  icon,
-  iconBg,
-  iconColor,
-  label,
-  value,
-  valueStyle,
-}: {
-  icon: React.ComponentProps<typeof Feather>["name"];
-  iconBg: string;
-  iconColor: string;
-  label: string;
-  value: string;
-  valueStyle?: object;
-}) {
-  return (
-    <View style={styles.metricRow}>
-      <View style={styles.metricLeft}>
-        <IconBadge name={icon} bg={iconBg} color={iconColor} />
-        <Text style={styles.metricLabel}>{label}</Text>
-      </View>
-      <Text style={[styles.metricValue, valueStyle]}>{value}</Text>
-    </View>
-  );
-}
-
-function Card({
+function SectionHeader({
   title,
-  children,
+  onPress,
+  actionLabel = "See all",
 }: {
   title: string;
-  children: React.ReactNode;
+  onPress?: () => void;
+  actionLabel?: string;
 }) {
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      <View style={styles.cardBody}>{children}</View>
+    <View style={s.sectionHeader}>
+      <Text style={s.sectionTitle}>{title}</Text>
+      {onPress && (
+        <TouchableOpacity onPress={onPress} hitSlop={8}>
+          <Text style={s.sectionAction}>{actionLabel}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
+
+function MetricCard({
+  label,
+  value,
+  color,
+  icon,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+}) {
+  return (
+    <View style={s.metricCard}>
+      <View style={[s.metricIcon, { backgroundColor: color + "18" }]}>
+        <Feather name={icon} size={15} color={color} />
+      </View>
+      <Text style={s.metricLabel}>{label}</Text>
+      <Text style={[s.metricValue, { color }]}>{value}</Text>
+    </View>
+  );
+}
+
+function AccountCard({ account }: { account: AccountBalance }) {
+  const iconName = ACCOUNT_TYPE_ICONS[account.accountType] ?? "circle";
+  const balColor =
+    account.currentBalance >= 0 ? colors.gray[900] : colors.red[500];
+  return (
+    <View style={s.accountCard}>
+      <View
+        style={[
+          s.accountIconWrap,
+          { backgroundColor: (account.color ?? colors.indigo[500]) + "18" },
+        ]}
+      >
+        <Feather
+          name={iconName}
+          size={16}
+          color={account.color ?? colors.indigo[500]}
+        />
+      </View>
+      <View style={s.accountInfo}>
+        <Text style={s.accountName} numberOfLines={1}>
+          {account.name}
+        </Text>
+        <Text style={s.accountType}>
+          {account.accountType.replace("_", " ")}
+        </Text>
+      </View>
+      <Text style={[s.accountBalance, { color: balColor }]}>
+        {fmt(account.currentBalance)}
+      </Text>
+    </View>
+  );
+}
+
+function LoanRow({ loan }: { loan: ActiveLoan }) {
+  const isOverdue = loan.dueDate && new Date(loan.dueDate) < new Date();
+  const dirColor =
+    loan.direction === "Gave" ? colors.green[600] : colors.red[600];
+  const dirLabel = loan.direction === "Gave" ? "Lent" : "Borrowed";
+  return (
+    <View style={s.loanRow}>
+      <View style={[s.loanDirBadge, { backgroundColor: dirColor + "15" }]}>
+        <Text style={[s.loanDirText, { color: dirColor }]}>{dirLabel}</Text>
+      </View>
+      <View style={s.loanInfo}>
+        <Text style={s.loanPerson} numberOfLines={1}>
+          {loan.personName}
+        </Text>
+        {isOverdue && <Text style={s.loanOverdue}>Overdue</Text>}
+      </View>
+      <View style={s.loanAmounts}>
+        <Text style={s.loanOutstanding}>{fmt(Number(loan.outstanding))}</Text>
+        <Text style={s.loanTotal}>of {fmt(Number(loan.amount))}</Text>
+      </View>
+    </View>
+  );
+}
+
+function TxnRow({ txn }: { txn: RecentTransaction }) {
+  const amtColor = TXN_TYPE_COLOR[txn.type] ?? colors.gray[700];
+  const prefix =
+    txn.type === "Income" ? "+" : txn.type === "Expense" ? "-" : "";
+  const label =
+    txn.description ??
+    txn.category?.name ??
+    (txn.type === "Transfer"
+      ? `${txn.fromAccount?.name ?? ""} → ${txn.toAccount?.name ?? ""}`
+      : txn.type);
+
+  return (
+    <View style={s.txnRow}>
+      <View
+        style={[
+          s.txnIconWrap,
+          { backgroundColor: (txn.category?.color ?? colors.gray[300]) + "22" },
+        ]}
+      >
+        <Text style={s.txnEmoji}>{txn.category?.icon ?? "💸"}</Text>
+      </View>
+      <View style={s.txnInfo}>
+        <Text style={s.txnLabel} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={s.txnDate}>{txn.txnMonth}</Text>
+      </View>
+      <Text style={[s.txnAmount, { color: amtColor }]}>
+        {prefix}
+        {fmt(Number(txn.amount))}
+      </Text>
+    </View>
+  );
+}
+
+function CategoryBar({
+  item,
+  maxTotal,
+}: {
+  item: CategoryBreakdownItem;
+  maxTotal: number;
+}) {
+  const pct = maxTotal > 0 ? item.total / maxTotal : 0;
+  return (
+    <View style={s.catRow}>
+      <View style={s.catLabelRow}>
+        <Text style={s.catEmoji}>{item.icon}</Text>
+        <Text style={s.catName} numberOfLines={1}>
+          {item.categoryName}
+        </Text>
+        <Text style={s.catAmount}>{fmt(item.total)}</Text>
+      </View>
+      <View style={s.catBarBg}>
+        <View
+          style={[
+            s.catBarFill,
+            {
+              width: `${Math.round(pct * 100)}%` as any,
+              backgroundColor: item.color ?? colors.indigo[400],
+            },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setAuthenticated } = useAuthStore();
+  const { user, setAuthenticated, setUser } = useAuthStore();
+  const [month] = useState<string | undefined>(undefined); // future: month picker
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: async () => {
-      const res = await api.get<ApiResponse<DashboardData>>("/sales/dashboard");
-      return res.data.data!;
-    },
+  const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
+    queryKey: ["dashboard", month],
+    queryFn: () => getDashboard(month),
   });
-
-  const [refreshing, setRefreshing] = React.useState(false);
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
-  };
 
   const handleLogout = async () => {
     await logout();
     setAuthenticated(false);
+    setUser(null);
     router.replace("/(auth)/login");
   };
 
-  return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Image
-          source={require("../../../assets/skinfo-170x80.webp")}
-          style={styles.logo}
-          resizeMode="contain"
+  if (isLoading) {
+    return (
+      <View style={s.center}>
+        <Spinner />
+      </View>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <View style={[s.center, { padding: 24 }]}>
+        <Alert
+          message={getApiErrorMessage(error, "Failed to load dashboard")}
+          type="error"
         />
+        <TouchableOpacity style={s.retryBtn} onPress={() => refetch()}>
+          <Text style={s.retryLabel}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const maxCatTotal = Math.max(
+    ...data.categoryBreakdown.map((c) => c.total),
+    1,
+  );
+  const greeting = user?.firstName ? `Hi, ${user.firstName}` : "Dashboard";
+
+  return (
+    <ScrollView
+      style={s.root}
+      contentContainerStyle={[
+        s.content,
+        { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 100 },
+      ]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+      }
+    >
+      {/* Header */}
+      <View style={s.topBar}>
+        <View>
+          <Text style={s.greeting}>{greeting}</Text>
+          <Text style={s.monthLabel}>{data.month}</Text>
+        </View>
         <TouchableOpacity
-          style={styles.logoutBtn}
           onPress={handleLogout}
+          style={s.logoutBtn}
           hitSlop={8}
         >
           <Feather name="log-out" size={18} color={colors.gray[500]} />
         </TouchableOpacity>
       </View>
 
-      {isLoading ? (
-        <Spinner fullScreen />
-      ) : error ? (
-        <View style={{ padding: 20 }}>
-          <Alert message={getApiErrorMessage(error)} />
+      {/* Net Worth */}
+      <View style={s.netWorthCard}>
+        <Text style={s.netWorthLabel}>Net Worth</Text>
+        <Text style={s.netWorthValue}>{fmt(data.netWorth)}</Text>
+        <View style={s.netWorthRow}>
+          <Text style={s.netWorthSub}>
+            All-time savings: {fmt(data.allTimeTotals.totalSavings)}
+          </Text>
         </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[colors.indigo[600]]}
-            />
-          }
-        >
-          {/* Hero */}
-          <ImageBackground
-            source={require("../../../assets/dashboard-hero.png")}
-            style={styles.hero}
-            imageStyle={styles.heroImage}
-            resizeMode="cover"
-          >
-            {/* Week key row */}
-            <View style={styles.heroTopRow}>
-              <View style={styles.heroWeekRow}>
-                <Feather name="calendar" size={13} color="#A5B4FC" />
-                <Text style={styles.heroWeekKey}>
-                  {data?.currentWeekKey ?? "Current Week"}
-                </Text>
-              </View>
-            </View>
+      </View>
 
-            {/* Week stats */}
-            <View style={styles.heroGrid}>
-              <HeroStat label="Week Sales" value={fmt(data?.week.sales)} />
-              <View style={styles.heroGridDivider} />
-              <HeroStat label="Week Profit" value={fmt(data?.week.profit)} />
-            </View>
+      {/* Month Metrics */}
+      <View style={s.metricsRow}>
+        <MetricCard
+          label="Income"
+          value={fmt(data.monthMetrics.income)}
+          color={colors.green[600]}
+          icon="arrow-down-circle"
+        />
+        <MetricCard
+          label="Expense"
+          value={fmt(data.monthMetrics.expense)}
+          color={colors.red[500]}
+          icon="arrow-up-circle"
+        />
+        <MetricCard
+          label="Savings"
+          value={fmt(data.monthMetrics.savings)}
+          color={colors.indigo[600]}
+          icon="activity"
+        />
+      </View>
 
-            <View style={styles.heroDivider} />
-
-            {/* Today stats */}
-            <View style={styles.heroGrid}>
-              <HeroStat label="Today Sales" value={fmt(data?.today.sales)} />
-              <View style={styles.heroGridDivider} />
-              <HeroStat label="Today Profit" value={fmt(data?.today.profit)} />
-            </View>
-          </ImageBackground>
-
-          {/* Last Week */}
-          <Card title={`Last Week · ${data?.lastWeekKey ?? ""}`}>
-            <MetricRow
-              icon="bar-chart-2"
-              iconBg="#EEF2FF"
-              iconColor={colors.indigo[500]}
-              label="Gross Sales"
-              value={fmt(data?.lastWeek.sales)}
-            />
-            <MetricRow
-              icon="percent"
-              iconBg="#EEF2FF"
-              iconColor={colors.indigo[500]}
-              label="Profit (30%)"
-              value={fmt(data?.lastWeek.profit)}
-              valueStyle={{ color: colors.indigo[600] }}
-            />
-            <MetricRow
-              icon="download"
-              iconBg="#ECFDF5"
-              iconColor={colors.green[600]}
-              label="Collected"
-              value={fmt(data?.lastWeek.payments)}
-              valueStyle={{ color: colors.green[600] }}
-            />
-            <MetricRow
-              icon="rotate-ccw"
-              iconBg="#FFF7ED"
-              iconColor={colors.orange[500]}
-              label="Returned"
-              value={fmt(data?.lastWeek.returned)}
-              valueStyle={{ color: colors.orange[500] }}
-            />
-
-            {/* Due pill */}
-            {(() => {
-              const due = data?.lastWeek.due ?? 0;
-              const isDue = due > 0;
-              return (
-                <View
-                  // activeOpacity={isDue ? 0.7 : 1}
-                  style={[
-                    styles.duePill,
-                    isDue ? styles.duePillRed : styles.duePillGreen,
-                  ]}
-                >
-                  <View style={styles.duePillLeft}>
-                    <View
-                      style={[
-                        styles.duePillIcon,
-                        { backgroundColor: isDue ? "#FEE2E2" : "#DCFCE7" },
-                      ]}
-                    >
-                      <Feather
-                        name={isDue ? "shopping-bag" : "check-circle"}
-                        size={14}
-                        color={isDue ? colors.red[500] : colors.green[600]}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.duePillLabel,
-                        isDue
-                          ? styles.duePillLabelRed
-                          : styles.duePillLabelGreen,
-                      ]}
-                    >
-                      {isDue ? "Outstanding Due" : "Fully Settled"}
-                    </Text>
-                  </View>
-                  <View style={styles.duePillRight}>
-                    <Text
-                      style={[
-                        styles.duePillValue,
-                        { color: isDue ? colors.red[600] : colors.green[600] },
-                      ]}
-                    >
-                      {fmt(due)}
-                    </Text>
-                    {/* {isDue && (
-                      <Feather
-                        name="chevron-right"
-                        size={16}
-                        color={colors.red[400]}
-                      />
-                    )} */}
-                  </View>
-                </View>
-              );
-            })()}
-          </Card>
-
-          {/* This Month */}
-          <Card title="This Month">
-            <MetricRow
-              icon="trending-up"
-              iconBg="#ECFDF5"
-              iconColor={colors.green[600]}
-              label="Sales"
-              value={fmt(data?.month.sales)}
-            />
-            <MetricRow
-              icon="percent"
-              iconBg="#EEF2FF"
-              iconColor={colors.indigo[500]}
-              label="Profit (30%)"
-              value={fmt(data?.month.profit)}
-              valueStyle={{ color: colors.indigo[600] }}
-            />
-          </Card>
-
-          {/* All Time */}
-          <Card title="All Time">
-            <MetricRow
-              icon="trending-up"
-              iconBg="#ECFDF5"
-              iconColor={colors.green[600]}
-              label="Total Sales"
-              value={fmt(data?.total.sales)}
-            />
-            <MetricRow
-              icon="percent"
-              iconBg="#EEF2FF"
-              iconColor={colors.indigo[500]}
-              label="Total Profit"
-              value={fmt(data?.total.profit)}
-              valueStyle={{ color: colors.indigo[600] }}
-            />
-          </Card>
-        </ScrollView>
+      {/* Accounts */}
+      {data.accounts.length > 0 && (
+        <View style={s.section}>
+          <SectionHeader
+            title="Accounts"
+            onPress={() => router.push("/(app)/accounts")}
+          />
+          <View style={s.card}>
+            {data.accounts.map((acc, i) => (
+              <React.Fragment key={acc.id}>
+                <AccountCard account={acc} />
+                {i < data.accounts.length - 1 && <View style={s.divider} />}
+              </React.Fragment>
+            ))}
+          </View>
+        </View>
       )}
-    </View>
+
+      {/* Loan Summary */}
+      <View style={s.section}>
+        <SectionHeader
+          title="Loans"
+          onPress={() => router.push("/(app)/loans")}
+        />
+        <View style={s.loanSummaryRow}>
+          <View style={[s.loanSummaryCard, { borderColor: colors.green[200] }]}>
+            <Text style={s.loanSummaryLabel}>Owed to Me</Text>
+            <Text style={[s.loanSummaryValue, { color: colors.green[600] }]}>
+              {fmt(data.loanSummary.owedToMe)}
+            </Text>
+            <Text style={s.loanSummaryCount}>
+              {data.loanSummary.activeGave} active
+            </Text>
+          </View>
+          <View style={[s.loanSummaryCard, { borderColor: colors.red[200] }]}>
+            <Text style={s.loanSummaryLabel}>I Owe</Text>
+            <Text style={[s.loanSummaryValue, { color: colors.red[500] }]}>
+              {fmt(data.loanSummary.iOwe)}
+            </Text>
+            <Text style={s.loanSummaryCount}>
+              {data.loanSummary.activeReceived} active
+            </Text>
+          </View>
+        </View>
+        {data.loanSummary.overdueCount > 0 && (
+          <View style={s.overdueAlert}>
+            <Feather name="alert-circle" size={14} color={colors.red[600]} />
+            <Text style={s.overdueText}>
+              {data.loanSummary.overdueCount} overdue loan
+              {data.loanSummary.overdueCount > 1 ? "s" : ""}
+            </Text>
+          </View>
+        )}
+        {data.activeLoans.length > 0 && (
+          <View style={[s.card, { marginTop: 10 }]}>
+            {data.activeLoans.map((loan, i) => (
+              <React.Fragment key={loan.id}>
+                <LoanRow loan={loan} />
+                {i < data.activeLoans.length - 1 && <View style={s.divider} />}
+              </React.Fragment>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Category Breakdown */}
+      {data.categoryBreakdown.length > 0 && (
+        <View style={s.section}>
+          <SectionHeader title={`Expenses — ${data.month}`} />
+          <View style={s.card}>
+            {data.categoryBreakdown.map((item) => (
+              <CategoryBar
+                key={item.categoryId ?? "uncategorized"}
+                item={item}
+                maxTotal={maxCatTotal}
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Recent Transactions */}
+      {data.recentTransactions.length > 0 && (
+        <View style={s.section}>
+          <SectionHeader
+            title="Recent Transactions"
+            onPress={() => router.push("/(app)/transactions")}
+          />
+          <View style={s.card}>
+            {data.recentTransactions.map((txn, i) => (
+              <React.Fragment key={txn.id}>
+                <TxnRow txn={txn} />
+                {i < data.recentTransactions.length - 1 && (
+                  <View style={s.divider} />
+                )}
+              </React.Fragment>
+            ))}
+          </View>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+// ── Styles ────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
+  content: { paddingHorizontal: 16, gap: 20 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   // Header
-  header: {
+  topBar: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    alignItems: "flex-start",
   },
-  logo: { width: 120, height: 34 },
-  logoutBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  greeting: { fontSize: 22, fontWeight: "800", color: colors.gray[900] },
+  monthLabel: { fontSize: 13, color: colors.gray[400], marginTop: 2 },
+  logoutBtn: { padding: 8 },
+
+  // Net Worth
+  netWorthCard: {
+    backgroundColor: colors.indigo[600],
+    borderRadius: 20,
+    padding: 22,
+    gap: 4,
+  },
+  netWorthLabel: { fontSize: 13, color: colors.indigo[200], fontWeight: "600" },
+  netWorthValue: { fontSize: 32, fontWeight: "800", color: "#fff" },
+  netWorthRow: { flexDirection: "row", marginTop: 4 },
+  netWorthSub: { fontSize: 12, color: colors.indigo[200] },
+
+  // Metrics
+  metricsRow: { flexDirection: "row", gap: 10 },
+  metricCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    gap: 6,
     borderWidth: 1,
-    borderColor: colors.gray[200],
+    borderColor: colors.gray[100],
+  },
+  metricIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
   },
+  metricLabel: { fontSize: 11, color: colors.gray[500], fontWeight: "600" },
+  metricValue: { fontSize: 14, fontWeight: "800" },
 
-  scroll: { flex: 1 },
-  scrollContent: { padding: 16, gap: 12, paddingBottom: 32 },
-
-  // Hero
-  hero: {
-    minHeight: 210,
-    padding: 20,
-    justifyContent: "space-between",
-    gap: 14,
-    overflow: "hidden",
-  },
-  heroImage: { borderRadius: 20 },
-
-  heroTopRow: {
+  // Section
+  section: { gap: 10 },
+  sectionHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-  },
-  heroWeekRow: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 6,
   },
-  heroWeekKey: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#A5B4FC",
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-  },
-
-  heroGrid: { flexDirection: "row", alignItems: "flex-start" },
-  heroGridDivider: {
-    width: 1,
-    backgroundColor: "#6366F1",
-    marginHorizontal: 16,
-    alignSelf: "stretch",
-  },
-  heroStat: { flex: 1, gap: 4 },
-  heroLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#C7D2FE",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  heroValue: { fontSize: 26, fontWeight: "800", color: "#fff" },
-  heroDivider: { height: 1, backgroundColor: "rgba(99,102,241,0.5)" },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: colors.gray[900] },
+  sectionAction: { fontSize: 13, color: colors.indigo[500], fontWeight: "600" },
 
   // Card
   card: {
     backgroundColor: "#fff",
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.gray[100],
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    overflow: "hidden",
   },
-  cardTitle: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.gray[400],
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    marginBottom: 4,
+  divider: {
+    height: 1,
+    backgroundColor: colors.gray[100],
+    marginHorizontal: 16,
   },
-  cardBody: {},
 
-  // Icon badge
-  iconBadge: {
-    width: 34,
-    height: 34,
+  // Account
+  accountCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    gap: 12,
+  },
+  accountIconWrap: {
+    width: 36,
+    height: 36,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  // MetricRow
-  metricRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
-    gap: 8,
+  accountInfo: { flex: 1 },
+  accountName: { fontSize: 14, fontWeight: "700", color: colors.gray[900] },
+  accountType: {
+    fontSize: 11,
+    color: colors.gray[400],
+    marginTop: 1,
+    textTransform: "capitalize",
   },
-  metricLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+  accountBalance: { fontSize: 15, fontWeight: "800" },
+
+  // Loan summary
+  loanSummaryRow: { flexDirection: "row", gap: 10 },
+  loanSummaryCard: {
     flex: 1,
-  },
-  metricLabel: { fontSize: 13, color: colors.gray[700] },
-  metricValue: { fontSize: 13, fontWeight: "700", color: colors.gray[900] },
-
-  // Due pill
-  duePill: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    backgroundColor: "#fff",
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 10,
-    marginBottom: 8,
-    gap: 8,
+    padding: 14,
+    borderWidth: 1.5,
+    gap: 4,
   },
-  duePillRed: { backgroundColor: colors.red[50] },
-  duePillGreen: { backgroundColor: colors.green[50] },
-  duePillLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  duePillRight: { flexDirection: "row", alignItems: "center", gap: 4 },
-  duePillIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
+  loanSummaryLabel: {
+    fontSize: 11,
+    color: colors.gray[500],
+    fontWeight: "600",
+  },
+  loanSummaryValue: { fontSize: 18, fontWeight: "800" },
+  loanSummaryCount: { fontSize: 11, color: colors.gray[400] },
+  overdueAlert: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.red[50],
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.red[100],
+  },
+  overdueText: { fontSize: 13, color: colors.red[600], fontWeight: "600" },
+
+  // Loan row
+  loanRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
+  loanDirBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  loanDirText: { fontSize: 11, fontWeight: "700" },
+  loanInfo: { flex: 1 },
+  loanPerson: { fontSize: 14, fontWeight: "700", color: colors.gray[900] },
+  loanOverdue: {
+    fontSize: 11,
+    color: colors.red[500],
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  loanAmounts: { alignItems: "flex-end" },
+  loanOutstanding: { fontSize: 14, fontWeight: "800", color: colors.gray[900] },
+  loanTotal: { fontSize: 11, color: colors.gray[400] },
+
+  // Txn row
+  txnRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
+  txnIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  duePillLabel: { fontSize: 13, fontWeight: "700" },
-  duePillLabelRed: { color: colors.red[500] },
-  duePillLabelGreen: { color: colors.green[600] },
-  duePillValue: { fontSize: 15, fontWeight: "800" },
+  txnEmoji: { fontSize: 16 },
+  txnInfo: { flex: 1 },
+  txnLabel: { fontSize: 14, fontWeight: "600", color: colors.gray[900] },
+  txnDate: { fontSize: 11, color: colors.gray[400], marginTop: 2 },
+  txnAmount: { fontSize: 14, fontWeight: "800" },
+
+  // Category bar
+  catRow: { padding: 14, gap: 8 },
+  catLabelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  catEmoji: { fontSize: 15 },
+  catName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.gray[800],
+  },
+  catAmount: { fontSize: 13, fontWeight: "700", color: colors.gray[900] },
+  catBarBg: { height: 6, backgroundColor: colors.gray[100], borderRadius: 3 },
+  catBarFill: { height: 6, borderRadius: 3, minWidth: 4 },
+
+  // Misc
+  retryBtn: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: colors.indigo[600],
+    borderRadius: 12,
+  },
+  retryLabel: { color: "#fff", fontWeight: "700" },
 });

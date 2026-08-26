@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User } from '@/types/auth';
+import type { User } from '@/types/finance';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -8,7 +8,6 @@ interface AuthState {
   setAuthenticated: (val: boolean) => void;
   setLoading: (val: boolean) => void;
   setUser: (user: User | null) => void;
-  reset: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -18,5 +17,4 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuthenticated: (val) => set({ isAuthenticated: val }),
   setLoading: (val) => set({ isLoading: val }),
   setUser: (user) => set({ user }),
-  reset: () => set({ isAuthenticated: false, user: null }),
 }));

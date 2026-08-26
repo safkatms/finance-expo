@@ -1,27 +1,10 @@
-import React from "react";
-import { View, StyleSheet } from "react-native";
-import { Stack, Redirect } from "expo-router";
-import { useAuthStore } from "@/store/auth.store";
-import { BottomNav } from "@/components/layout/BottomNav";
-import { useMe } from "@/hooks/use-auth";
+import { Stack } from "expo-router";
 
-export default function AppLayout() {
-  const { isAuthenticated, isLoading } = useAuthStore();
-  useMe(); // fetch + cache current user
-
-  if (!isLoading && !isAuthenticated) return <Redirect href="/(auth)/login" />;
-
+export default function AuthLayout() {
   return (
-    <View style={styles.root}>
-      <View style={styles.content}>
-        <Stack screenOptions={{ headerShown: false }} />
-      </View>
-      <BottomNav />
-    </View>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="login/index" />
+      <Stack.Screen name="change-password/index" />
+    </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F9FAFB" },
-  content: { flex: 1 },
-});

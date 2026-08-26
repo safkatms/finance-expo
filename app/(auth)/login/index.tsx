@@ -30,7 +30,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setAuthenticated } = useAuthStore();
+  const { setAuthenticated, setUser } = useAuthStore();
   const insets = useSafeAreaInsets();
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -44,9 +44,14 @@ export default function LoginScreen() {
   const onSubmit = async (data: FormData) => {
     setError("");
     try {
-      await login(data);
+      const user = await login(data.email, data.password);
+      setUser(user);
       setAuthenticated(true);
-      router.replace("/(app)/dashboard");
+      if (user.mustChangePassword) {
+        router.replace("/(auth)/change-password");
+      } else {
+        router.replace("/(app)/dashboard");
+      }
     } catch (err) {
       setError(getApiErrorMessage(err, "Login failed"));
     }
@@ -164,20 +169,7 @@ export default function LoginScreen() {
                 <Text style={styles.fieldError}>{errors.password.message}</Text>
               )}
             </View>
-            <TouchableOpacity
-              onPress={() => router.push("/(auth)/forgot-password")}
-            >
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: colors.indigo[600],
-                  fontWeight: "600",
-                  textAlign: "right",
-                }}
-              >
-                Forgot password?
-              </Text>
-            </TouchableOpacity>
+
             {/* Submit */}
             <TouchableOpacity
               style={styles.submitBtn}

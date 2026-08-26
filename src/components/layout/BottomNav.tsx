@@ -7,9 +7,7 @@ import { colors } from "../ui/theme";
 
 const nav = [
   { href: "/(app)/dashboard", label: "Dashboard", icon: "home" },
-  { href: "/(app)/sales/add", label: "Add Sales", icon: "plus-circle" },
-  { href: "/(app)/sales/weekly", label: "Weekly", icon: "calendar" },
-  { href: "/(app)/sales/monthly", label: "Monthly", icon: "bar-chart-2" },
+  { href: "/(app)/accounts", label: "Accounts", icon: "credit-card" },
 ];
 
 export function BottomNav() {
