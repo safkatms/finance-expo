@@ -1,0 +1,8 @@
+name: Create Preview Builds
+
+jobs:
+  build_android:
+    type: build
+    params:
+      platform: android
+      profile: preview
