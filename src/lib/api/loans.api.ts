@@ -5,8 +5,9 @@ import type { Loan, LoanSummary, PaginatedData } from '@/types/finance';
 export interface LoanFilter {
     page?: number;
     limit?: number;
-    status?: string;
     direction?: string;
+    status?: string;
+    search?: string;
 }
 
 export async function getLoans(filter: LoanFilter = {}): Promise<PaginatedData<Loan>> {
@@ -41,7 +42,15 @@ export async function createLoan(payload: CreateLoanPayload): Promise<Loan> {
     return res.data.data!;
 }
 
-export async function updateLoan(id: number, payload: Pick<CreateLoanPayload, 'dueDate' | 'purpose' | 'notes'>): Promise<Loan> {
+export interface UpdateLoanPayload {
+    dueDate?: string;
+    status?: string;
+    purpose?: string;
+    notes?: string;
+    personPhone?: string;
+}
+
+export async function updateLoan(id: number, payload: UpdateLoanPayload): Promise<Loan> {
     const res = await api.patch<ApiResponse<Loan>>(`/loans/${id}`, payload);
     return res.data.data!;
 }
@@ -50,7 +59,6 @@ export interface CreateLoanPaymentPayload {
     paymentDate: string;
     amount: number;
     accountId: number;
-    isFinal?: boolean;
     note?: string;
 }
 

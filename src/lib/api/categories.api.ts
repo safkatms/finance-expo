@@ -30,23 +30,37 @@ export async function deleteCategory(id: number): Promise<void> {
     await api.delete(`/categories/${id}`);
 }
 
-// Pinned
-export async function getPinnedCategories(month?: string): Promise<PinnedCategory[]> {
-    const res = await api.get<ApiResponse<PinnedCategory[]>>('/pinned-categories', { params: month ? { month } : {} });
+export interface PinnedCategoryListResponse {
+    month: string;
+    pinned: {
+        id: number;
+        categoryId: number;
+        categoryName: string;
+        icon: string | null;
+        color: string | null;
+        displayOrder: number;
+        monthlyTotal: number;
+    }[];
+}
+
+export async function getPinnedCategories(month?: string): Promise<PinnedCategoryListResponse> {
+    const res = await api.get<ApiResponse<PinnedCategoryListResponse>>('/pinned-categories', {
+        params: month ? { month } : {},
+    });
     return res.data.data!;
 }
 
-export async function pinCategory(categoryId: number): Promise<PinnedCategory[]> {
-    const res = await api.post<ApiResponse<PinnedCategory[]>>(`/pinned-categories/${categoryId}`);
+export async function pinCategory(categoryId: number): Promise<PinnedCategoryListResponse> {
+    const res = await api.post<ApiResponse<PinnedCategoryListResponse>>(`/pinned-categories/${categoryId}`);
     return res.data.data!;
 }
 
-export async function unpinCategory(categoryId: number): Promise<PinnedCategory[]> {
-    const res = await api.delete<ApiResponse<PinnedCategory[]>>(`/pinned-categories/${categoryId}`);
+export async function unpinCategory(categoryId: number): Promise<PinnedCategoryListResponse> {
+    const res = await api.delete<ApiResponse<PinnedCategoryListResponse>>(`/pinned-categories/${categoryId}`);
     return res.data.data!;
 }
 
-export async function setPinnedCategories(categoryIds: number[]): Promise<PinnedCategory[]> {
-    const res = await api.put<ApiResponse<PinnedCategory[]>>('/pinned-categories', { categoryIds });
+export async function setPinnedCategories(categoryIds: number[]): Promise<PinnedCategoryListResponse> {
+    const res = await api.put<ApiResponse<PinnedCategoryListResponse>>('/pinned-categories', { categoryIds });
     return res.data.data!;
 }

@@ -9,8 +9,9 @@ export interface TransactionFilter {
     categoryId?: number;
     accountId?: number;
     month?: string;
-    startDate?: string;
-    endDate?: string;
+    fromDate?: string;
+    toDate?: string;
+    search?: string;
 }
 
 export async function getTransactions(filter: TransactionFilter = {}): Promise<PaginatedData<Transaction>> {
@@ -23,13 +24,8 @@ export async function getTransaction(id: number): Promise<Transaction> {
     return res.data.data!;
 }
 
-export async function getTransactionsByMonth(month: string, filter: Omit<TransactionFilter, 'month'> = {}): Promise<PaginatedData<Transaction>> {
-    const res = await api.get<ApiResponse<PaginatedData<Transaction>>>(`/transactions/by-month/${month}`, { params: filter });
-    return res.data.data!;
-}
-
 export interface CreateTransactionPayload {
-    txnDate: string;        // ISO date string
+    txnDate: string;
     type: string;
     amount: number;
     categoryId?: number;
@@ -52,14 +48,4 @@ export async function updateTransaction(id: number, payload: Partial<CreateTrans
 
 export async function deleteTransaction(id: number): Promise<void> {
     await api.delete(`/transactions/${id}`);
-}
-
-export async function getMonthlySummary() {
-    const res = await api.get<ApiResponse<any>>('/transactions/summary/monthly');
-    return res.data.data!;
-}
-
-export async function getCategoryBreakdown(month: string) {
-    const res = await api.get<ApiResponse<any>>('/transactions/summary/categories', { params: { month } });
-    return res.data.data!;
 }

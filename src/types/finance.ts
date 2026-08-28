@@ -58,9 +58,11 @@ export interface Category {
 export interface PinnedCategory {
     id: number;
     categoryId: number;
+    categoryName: string;
+    icon: string | null;
+    color: string | null;
     displayOrder: number;
-    category: Category;
-    monthlyTotal?: string;
+    monthlyTotal: number;
 }
 
 export interface Transaction {
@@ -215,4 +217,9 @@ export interface PaginationMeta {
 export interface PaginatedData<T> {
     data: T[];
     meta: PaginationMeta;
+    summary?: {
+        income: number;
+        expense: number;
+        savings: number;
+    };
 }

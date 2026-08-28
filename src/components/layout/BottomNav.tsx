@@ -7,6 +7,8 @@ import { colors } from "../ui/theme";
 
 const nav = [
   { href: "/(app)/dashboard", label: "Dashboard", icon: "home" },
+  { href: "/(app)/transactions", label: "Transactions", icon: "list" },
+  { href: "/(app)/loans", label: "Loans", icon: "users" },
   { href: "/(app)/accounts", label: "Accounts", icon: "credit-card" },
 ];
 
