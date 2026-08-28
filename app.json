@@ -19,7 +19,7 @@
         "foregroundImage": "./assets/skinO-foreground.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.finance-app.app"
+      "package": "com.finance.app"
     },
     "plugins": ["expo-router", "expo-secure-store", "expo-font"],
     "extra": {
