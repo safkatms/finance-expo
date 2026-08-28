@@ -70,7 +70,7 @@ export default function LoginScreen() {
         {/* Logo block */}
         <View style={styles.logoBlock}>
           <Image
-            source={require("../../../assets/skinfo-170x80.webp")}
+            source={require("../../../assets/finance.png")}
             style={styles.logo}
             resizeMode="contain"
           />
