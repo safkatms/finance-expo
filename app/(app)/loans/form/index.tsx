@@ -96,7 +96,9 @@ export default function LoanFormScreen() {
     >
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Feather name="x" size={22} color={colors.gray[700]} />
+          <View style={s.headerIconBtn}>
+            <Feather name="x" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Record Loan</Text>
         <TouchableOpacity
@@ -104,9 +106,11 @@ export default function LoanFormScreen() {
           hitSlop={8}
           disabled={saveMut.isPending}
         >
-          <Text style={s.saveBtn}>
-            {saveMut.isPending ? "Saving…" : "Save"}
-          </Text>
+          <View style={s.saveBtn}>
+            <Text style={s.saveBtnLabel}>
+              {saveMut.isPending ? "Saving…" : "Save"}
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -148,7 +152,7 @@ export default function LoanFormScreen() {
                   >
                     <Feather
                       name={d === "Gave" ? "arrow-up-right" : "arrow-down-left"}
-                      size={15}
+                      size={16}
                       color={value === d ? "#fff" : colors.gray[500]}
                     />
                     <Text
@@ -170,14 +174,19 @@ export default function LoanFormScreen() {
             control={control}
             name="personName"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[s.input, errors.personName && s.inputError]}
-                placeholder="e.g. Rahim"
-                placeholderTextColor={colors.gray[300]}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={[s.inputRow, errors.personName && s.inputRowError]}>
+                <View style={s.inputPrefix}>
+                  <Feather name="user" size={15} color={colors.teal[500]} />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="e.g. Rahim"
+                  placeholderTextColor={colors.gray[400]}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
           {errors.personName && (
@@ -192,15 +201,20 @@ export default function LoanFormScreen() {
             control={control}
             name="personPhone"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={s.input}
-                placeholder="+8801700000000"
-                placeholderTextColor={colors.gray[300]}
-                keyboardType="phone-pad"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={s.inputRow}>
+                <View style={s.inputPrefix}>
+                  <Feather name="phone" size={15} color={colors.teal[500]} />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="+8801700000000"
+                  placeholderTextColor={colors.gray[400]}
+                  keyboardType="phone-pad"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
         </View>
@@ -212,15 +226,20 @@ export default function LoanFormScreen() {
             control={control}
             name="amount"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[s.input, errors.amount && s.inputError]}
-                placeholder="0"
-                placeholderTextColor={colors.gray[300]}
-                keyboardType="numeric"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={[s.inputRow, errors.amount && s.inputRowError]}>
+                <View style={s.inputPrefix}>
+                  <Text style={s.currencySymbol}>৳</Text>
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="0"
+                  placeholderTextColor={colors.gray[400]}
+                  keyboardType="numeric"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
           {errors.amount && (
@@ -235,16 +254,24 @@ export default function LoanFormScreen() {
             control={control}
             name="loanDate"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={s.input}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.gray[300]}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={[s.inputRow, errors.loanDate && s.inputRowError]}>
+                <View style={s.inputPrefix}>
+                  <Feather name="calendar" size={15} color={colors.teal[500]} />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.gray[400]}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
+          {errors.loanDate && (
+            <Text style={s.fieldError}>{errors.loanDate.message}</Text>
+          )}
         </View>
 
         {/* Due Date */}
@@ -254,14 +281,19 @@ export default function LoanFormScreen() {
             control={control}
             name="dueDate"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={s.input}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.gray[300]}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={s.inputRow}>
+                <View style={s.inputPrefix}>
+                  <Feather name="clock" size={15} color={colors.teal[500]} />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.gray[400]}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
         </View>
@@ -307,14 +339,19 @@ export default function LoanFormScreen() {
             control={control}
             name="purpose"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={s.input}
-                placeholder="e.g. Medical expenses"
-                placeholderTextColor={colors.gray[300]}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={s.inputRow}>
+                <View style={s.inputPrefix}>
+                  <Feather name="target" size={15} color={colors.teal[500]} />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="e.g. Medical expenses"
+                  placeholderTextColor={colors.gray[400]}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
         </View>
@@ -326,16 +363,25 @@ export default function LoanFormScreen() {
             control={control}
             name="notes"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[s.input, s.textarea]}
-                placeholder="Optional notes…"
-                placeholderTextColor={colors.gray[300]}
-                multiline
-                numberOfLines={3}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={[s.inputRow, s.textareaRow]}>
+                <View style={s.inputPrefixTop}>
+                  <Feather
+                    name="align-left"
+                    size={15}
+                    color={colors.teal[500]}
+                  />
+                </View>
+                <TextInput
+                  style={[s.textInput, s.textarea]}
+                  placeholder="Optional notes…"
+                  placeholderTextColor={colors.gray[400]}
+                  multiline
+                  numberOfLines={3}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
         </View>
@@ -346,34 +392,82 @@ export default function LoanFormScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    backgroundColor: colors.teal[700],
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: colors.gray[900] },
-  saveBtn: { fontSize: 15, fontWeight: "700", color: colors.indigo[600] },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  headerIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtn: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  saveBtnLabel: { fontSize: 14, fontWeight: "700", color: "#fff" },
+
   content: { padding: 16, gap: 20 },
+
   field: { gap: 6 },
-  label: { fontSize: 13, fontWeight: "700", color: colors.gray[700] },
-  input: {
+  label: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.gray[600],
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginLeft: 2,
+  },
+
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderColor: colors.teal[100],
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  inputRowError: { borderColor: colors.red[400] },
+  inputPrefix: {
+    width: 44,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRightWidth: 1,
+    borderRightColor: colors.teal[50],
+  },
+  inputPrefixTop: {
+    width: 44,
+    paddingTop: 14,
+    alignItems: "center",
+    alignSelf: "flex-start",
+  },
+  textInput: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 12,
     fontSize: 15,
     color: colors.gray[900],
   },
-  inputError: { borderColor: colors.red[500] },
-  textarea: { height: 80, textAlignVertical: "top" },
-  fieldError: { fontSize: 12, color: colors.red[500], marginLeft: 2 },
+  textareaRow: { alignItems: "flex-start" },
+  textarea: { height: 88, paddingTop: 14, textAlignVertical: "top" },
+  currencySymbol: { fontSize: 16, fontWeight: "700", color: colors.teal[500] },
+  fieldError: { fontSize: 12, color: colors.red[500], marginLeft: 4 },
+
   dirRow: { flexDirection: "row", gap: 10 },
   dirBtn: {
     flex: 1,
@@ -388,6 +482,7 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
   dirBtnLabel: { fontSize: 14, fontWeight: "700", color: colors.gray[500] },
+
   chipRow: { flexDirection: "row", gap: 8 },
   chip: {
     paddingHorizontal: 14,
@@ -398,9 +493,9 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
   chipSelected: {
-    borderColor: colors.indigo[500],
-    backgroundColor: colors.indigo[50],
+    borderColor: colors.teal[500],
+    backgroundColor: colors.teal[50],
   },
   chipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
-  chipLabelSelected: { color: colors.indigo[600] },
+  chipLabelSelected: { color: colors.teal[700] },
 });

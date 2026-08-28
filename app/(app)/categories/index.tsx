@@ -28,7 +28,7 @@ import Feather from "@expo/vector-icons/Feather";
 const TYPE_COLORS: Record<string, string> = {
   Income: colors.green[500],
   Expense: colors.red[500],
-  Transfer: colors.indigo[400],
+  Transfer: colors.teal[400],
 };
 
 function CategoryCard({
@@ -45,7 +45,7 @@ function CategoryCard({
   onTogglePin: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const accentColor = category.color ?? colors.indigo[500];
+  const accentColor = category.color ?? colors.teal[500];
   const typeColor = category.applicableType
     ? TYPE_COLORS[category.applicableType]
     : colors.gray[400];
@@ -79,7 +79,7 @@ function CategoryCard({
         </View>
         <View style={s.catRight}>
           {isPinned && (
-            <Feather name="bookmark" size={14} color={colors.indigo[500]} />
+            <Feather name="bookmark" size={14} color={colors.teal[500]} />
           )}
           <Feather
             name={expanded ? "chevron-up" : "chevron-down"}
@@ -97,25 +97,24 @@ function CategoryCard({
           <View style={s.actionRow}>
             <TouchableOpacity style={s.actionBtn} onPress={onTogglePin}>
               <Feather
-                name={isPinned ? "bookmark" : "bookmark"}
+                name="bookmark"
                 size={13}
-                color={isPinned ? colors.red[500] : colors.indigo[600]}
+                color={isPinned ? colors.red[500] : colors.teal[600]}
               />
               <Text
                 style={[
                   s.actionLabel,
-                  { color: isPinned ? colors.red[500] : colors.indigo[600] },
+                  { color: isPinned ? colors.red[500] : colors.teal[600] },
                 ]}
               >
                 {isPinned ? "Unpin" : "Pin"}
               </Text>
             </TouchableOpacity>
-
             {!category.isSystem && (
               <>
                 <TouchableOpacity style={s.actionBtn} onPress={onEdit}>
-                  <Feather name="edit-2" size={13} color={colors.indigo[600]} />
-                  <Text style={[s.actionLabel, { color: colors.indigo[600] }]}>
+                  <Feather name="edit-2" size={13} color={colors.teal[600]} />
+                  <Text style={[s.actionLabel, { color: colors.teal[600] }]}>
                     Edit
                   </Text>
                 </TouchableOpacity>
@@ -210,21 +209,27 @@ export default function CategoriesScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={colors.gray[700]} />
+          <View style={s.headerIconBtn}>
+            <Feather name="arrow-left" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Categories</Text>
         <TouchableOpacity
           onPress={() => router.push("/(app)/categories/form")}
           hitSlop={8}
         >
-          <Feather name="plus" size={22} color={colors.indigo[600]} />
+          <View style={s.addBtn}>
+            <Feather name="plus" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
       </View>
 
-      {/* Pinned summary */}
+      {/* Pinned banner */}
       {pinnedList.length > 0 && (
         <View style={s.pinnedBanner}>
-          <Feather name="bookmark" size={13} color={colors.indigo[500]} />
+          <View style={s.pinnedBannerIcon}>
+            <Feather name="bookmark" size={12} color={colors.teal[600]} />
+          </View>
           <Text style={s.pinnedBannerText}>
             {pinnedList.length} pinned · shown on dashboard
           </Text>
@@ -277,13 +282,16 @@ export default function CategoriesScreen() {
         >
           {filtered.length === 0 ? (
             <View style={s.empty}>
-              <Feather name="tag" size={40} color={colors.gray[300]} />
+              <View style={s.emptyIconWrap}>
+                <Feather name="tag" size={28} color={colors.teal[400]} />
+              </View>
               <Text style={s.emptyText}>No categories</Text>
               <TouchableOpacity
                 style={s.emptyBtn}
                 onPress={() => router.push("/(app)/categories/form")}
               >
-                <Text style={s.emptyBtnLabel}>Add Category</Text>
+                <Feather name="plus" size={15} color="#fff" />
+                <Text style={s.emptyBtnLabel}>Add category</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -316,32 +324,57 @@ export default function CategoriesScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    backgroundColor: colors.teal[700],
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: colors.gray[900] },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  headerIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   pinnedBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.indigo[50],
+    gap: 8,
+    backgroundColor: colors.teal[50],
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.indigo[100],
+    borderBottomColor: colors.teal[100],
+  },
+  pinnedBannerIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: colors.teal[100],
+    alignItems: "center",
+    justifyContent: "center",
   },
   pinnedBannerText: {
     fontSize: 12,
-    color: colors.indigo[600],
+    color: colors.teal[700],
     fontWeight: "600",
   },
+
   filterRow: {
     flexDirection: "row",
     gap: 8,
@@ -360,12 +393,14 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
   filterChipActive: {
-    borderColor: colors.indigo[500],
-    backgroundColor: colors.indigo[50],
+    borderColor: colors.teal[500],
+    backgroundColor: colors.teal[50],
   },
   filterChipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[500] },
-  filterChipLabelActive: { color: colors.indigo[600] },
+  filterChipLabelActive: { color: colors.teal[700] },
+
   list: { padding: 16, gap: 10 },
+
   catCard: {
     backgroundColor: "#fff",
     borderRadius: 14,
@@ -386,17 +421,21 @@ const s = StyleSheet.create({
   catNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   catName: { fontSize: 14, fontWeight: "700", color: colors.gray[900] },
   sysBadge: {
-    backgroundColor: colors.gray[100],
+    backgroundColor: colors.teal[50],
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: colors.teal[100],
   },
-  sysBadgeText: { fontSize: 10, fontWeight: "600", color: colors.gray[500] },
+  sysBadgeText: { fontSize: 10, fontWeight: "600", color: colors.teal[700] },
   catType: { fontSize: 11, fontWeight: "600", marginTop: 2 },
   catRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+
   catActions: {
     borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopColor: colors.teal[50],
+    backgroundColor: colors.gray[50],
     padding: 14,
     gap: 10,
   },
@@ -409,23 +448,38 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: colors.gray[50],
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: colors.gray[100],
+    borderColor: colors.teal[100],
   },
   actionLabel: { fontSize: 12, fontWeight: "600" },
-  empty: { alignItems: "center", gap: 12, paddingTop: 60 },
+
+  empty: { alignItems: "center", gap: 14, paddingTop: 60 },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.teal[50],
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.teal[100],
+  },
   emptyText: { fontSize: 15, color: colors.gray[400], fontWeight: "600" },
   emptyBtn: {
-    backgroundColor: colors.indigo[600],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.teal[600],
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
   emptyBtnLabel: { color: "#fff", fontWeight: "700", fontSize: 14 },
+
   errorText: { fontSize: 14, color: colors.red[500], textAlign: "center" },
   retryBtn: {
-    backgroundColor: colors.indigo[600],
+    backgroundColor: colors.teal[600],
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,

@@ -96,11 +96,7 @@ export default function LoginScreen() {
                     ]}
                   >
                     <View style={styles.inputPrefix}>
-                      <Feather
-                        name="mail"
-                        size={16}
-                        color={colors.indigo[500]}
-                      />
+                      <Feather name="mail" size={16} color={colors.teal[500]} />
                     </View>
                     <TextInput
                       style={styles.textInput}
@@ -135,11 +131,7 @@ export default function LoginScreen() {
                     ]}
                   >
                     <View style={styles.inputPrefix}>
-                      <Feather
-                        name="lock"
-                        size={16}
-                        color={colors.indigo[500]}
-                      />
+                      <Feather name="lock" size={16} color={colors.teal[500]} />
                     </View>
                     <TextInput
                       style={styles.textInput}
@@ -233,7 +225,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: colors.indigo[200],
+    borderColor: colors.teal[200],
     borderRadius: 14,
     overflow: "hidden",
     backgroundColor: "#FAFAFE",
@@ -247,7 +239,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRightWidth: 1,
-    borderRightColor: colors.indigo[100],
+    borderRightColor: colors.teal[100],
   },
   inputSuffix: {
     width: 44,
@@ -277,7 +269,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     height: 56,
     paddingHorizontal: 20,
-    backgroundColor: colors.indigo[600],
+    backgroundColor: colors.teal[600],
     marginTop: 4,
   },
   submitBtnLabel: {

@@ -8,7 +8,6 @@ import {
   RefreshControl,
   Alert,
   TextInput,
-  ImageBackground,
 } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,7 +22,7 @@ import Feather from "@expo/vector-icons/Feather";
 const TYPE_COLORS: Record<TxnType, string> = {
   Income: colors.green[500],
   Expense: colors.red[500],
-  Transfer: colors.indigo[400],
+  Transfer: colors.teal[400],
 };
 const TYPE_PREFIX: Record<TxnType, string> = {
   Income: "+",
@@ -142,13 +141,13 @@ function TxnCard({
           ) : null}
           <View style={s.actionRow}>
             <TouchableOpacity style={s.actionBtn} onPress={onEdit}>
-              <Feather name="edit-2" size={13} color={colors.indigo[600]} />
-              <Text style={[s.actionLabel, { color: colors.indigo[600] }]}>
+              <Feather name="edit-2" size={14} color={colors.teal[600]} />
+              <Text style={[s.actionLabel, { color: colors.teal[600] }]}>
                 Edit
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.actionBtn} onPress={onDelete}>
-              <Feather name="trash-2" size={13} color={colors.red[500]} />
+              <Feather name="trash-2" size={14} color={colors.red[500]} />
               <Text style={[s.actionLabel, { color: colors.red[500] }]}>
                 Delete
               </Text>
@@ -211,17 +210,21 @@ export default function TransactionsScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      {/* Header */}
+      {/* Header aligned with Account theme */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={colors.gray[700]} />
+          <View style={s.headerIconBtn}>
+            <Feather name="arrow-left" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Transactions</Text>
         <TouchableOpacity
           onPress={() => router.push("/(app)/transactions/form")}
           hitSlop={8}
         >
-          <Feather name="plus" size={22} color={colors.indigo[600]} />
+          <View style={s.addBtn}>
+            <Feather name="plus" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -235,7 +238,7 @@ export default function TransactionsScreen() {
           hitSlop={8}
           style={s.monthArrow}
         >
-          <Feather name="chevron-left" size={20} color={colors.indigo[600]} />
+          <Feather name="chevron-left" size={20} color={colors.teal[600]} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => {
@@ -259,7 +262,7 @@ export default function TransactionsScreen() {
           <Feather
             name="chevron-right"
             size={20}
-            color={month === thisMon ? colors.gray[300] : colors.indigo[600]}
+            color={month === thisMon ? colors.gray[300] : colors.teal[600]}
           />
         </TouchableOpacity>
       </View>
@@ -312,6 +315,7 @@ export default function TransactionsScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
       {isLoading ? (
         <View style={s.center}>
           <Spinner />
@@ -333,77 +337,76 @@ export default function TransactionsScreen() {
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              colors={[colors.teal[600]]}
+              tintColor={colors.teal[600]}
+            />
           }
         >
-          {/* Hero Banner */}
-          <ImageBackground
-            source={require("../../../assets/sales-hero.png")}
-            style={s.hero}
-            imageStyle={s.heroImage}
-            resizeMode="cover"
-          >
-            <View style={s.heroContent}>
-              <View style={s.heroHeader}>
-                <View style={s.heroIconBadge}>
-                  <Feather name="activity" size={20} color="#fff" />
-                </View>
-                <View style={s.heroTextBlock}>
-                  <Text style={s.heroEyebrow}>MONTHLY OVERVIEW</Text>
-                  <Text style={s.heroTitle}>Transactions</Text>
-                  <Text style={s.heroSub}>{month}</Text>
-                </View>
+          {/* Hero Banner matched to Net Worth Hero */}
+          <View style={s.hero}>
+            <View style={s.heroHeader}>
+              <View style={s.heroIconBadge}>
+                <Feather name="activity" size={22} color="#fff" />
               </View>
-
-              {data?.summary && (
-                <View style={s.heroStats}>
-                  <View style={s.heroStat}>
-                    <Text style={s.heroStatLabel}>Income</Text>
-                    <Text style={[s.heroStatValue, { color: "#86EFAC" }]}>
-                      {fmt(data.summary.income)}
-                    </Text>
-                  </View>
-                  <View style={s.heroStatDivider} />
-                  <View style={s.heroStat}>
-                    <Text style={s.heroStatLabel}>Expense</Text>
-                    <Text style={[s.heroStatValue, { color: "#FCA5A5" }]}>
-                      {fmt(data.summary.expense)}
-                    </Text>
-                  </View>
-                  <View style={s.heroStatDivider} />
-                  <View style={s.heroStat}>
-                    <Text style={s.heroStatLabel}>Savings</Text>
-                    <Text
-                      style={[
-                        s.heroStatValue,
-                        {
-                          color:
-                            data.summary.savings >= 0 ? "#BAE6FD" : "#FCA5A5",
-                        },
-                      ]}
-                    >
-                      {fmt(data.summary.savings)}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              <View style={s.heroFooter}>
-                <View style={s.heroStatus}>
-                  <View style={s.heroDot} />
-                  <Text style={s.heroStatusText}>
-                    {txns.length} transactions shown
-                  </Text>
-                </View>
-                {meta && (
-                  <Text style={s.heroTotal}>{meta.totalItems} total</Text>
-                )}
+              <View style={s.heroTextBlock}>
+                <Text style={s.heroEyebrow}>MONTHLY OVERVIEW</Text>
+                <Text style={s.heroTitle}>Transactions</Text>
+                <Text style={s.heroSub}>{month}</Text>
               </View>
             </View>
-          </ImageBackground>
+
+            {data?.summary && (
+              <View style={s.heroStats}>
+                <View style={s.heroStat}>
+                  <Text style={s.heroStatLabel}>Income</Text>
+                  <Text style={[s.heroStatValue, { color: "#99F6E4" }]}>
+                    {fmt(data.summary.income)}
+                  </Text>
+                </View>
+                <View style={s.heroStatDivider} />
+                <View style={s.heroStat}>
+                  <Text style={s.heroStatLabel}>Expense</Text>
+                  <Text style={[s.heroStatValue, { color: "#FCA5A5" }]}>
+                    {fmt(data.summary.expense)}
+                  </Text>
+                </View>
+                <View style={s.heroStatDivider} />
+                <View style={s.heroStat}>
+                  <Text style={s.heroStatLabel}>Savings</Text>
+                  <Text
+                    style={[
+                      s.heroStatValue,
+                      {
+                        color:
+                          data.summary.savings >= 0 ? "#BAE6FD" : "#FCA5A5",
+                      },
+                    ]}
+                  >
+                    {fmt(data.summary.savings)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={s.heroFooter}>
+              <View style={s.heroStatus}>
+                <View style={s.heroDot} />
+                <Text style={s.heroStatusText}>
+                  {txns.length} transactions shown
+                </Text>
+              </View>
+              {meta && <Text style={s.heroTotal}>{meta.totalItems} total</Text>}
+            </View>
+          </View>
+
           {txns.length === 0 ? (
             <View style={s.empty}>
-              <Feather name="inbox" size={40} color={colors.gray[300]} />
+              <View style={s.emptyIconWrap}>
+                <Feather name="inbox" size={28} color={colors.teal[400]} />
+              </View>
               <Text style={s.emptyText}>No transactions for {month}</Text>
             </View>
           ) : (
@@ -421,6 +424,7 @@ export default function TransactionsScreen() {
               />
             ))
           )}
+
           {meta && meta.totalPages > 1 && (
             <View style={s.pagination}>
               <TouchableOpacity
@@ -431,7 +435,7 @@ export default function TransactionsScreen() {
                 <Feather
                   name="chevron-left"
                   size={18}
-                  color={page === 1 ? colors.gray[300] : colors.indigo[600]}
+                  color={page === 1 ? colors.gray[300] : colors.teal[600]}
                 />
               </TouchableOpacity>
               <Text style={s.pageLabel}>
@@ -451,7 +455,7 @@ export default function TransactionsScreen() {
                   color={
                     page === meta.totalPages
                       ? colors.gray[300]
-                      : colors.indigo[600]
+                      : colors.teal[600]
                   }
                 />
               </TouchableOpacity>
@@ -466,17 +470,33 @@ export default function TransactionsScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+
+  // Matched Header Styles
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    backgroundColor: colors.teal[700],
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: colors.gray[900] },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  headerIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   monthBar: {
     flexDirection: "row",
@@ -491,7 +511,7 @@ const s = StyleSheet.create({
   monthArrow: { padding: 8 },
   monthLabelWrap: { alignItems: "center" },
   monthLabel: { fontSize: 16, fontWeight: "800", color: colors.gray[900] },
-  monthReset: { fontSize: 10, color: colors.indigo[400], marginTop: 1 },
+  monthReset: { fontSize: 10, color: colors.teal[400], marginTop: 1 },
 
   searchWrap: {
     flexDirection: "row",
@@ -507,6 +527,7 @@ const s = StyleSheet.create({
   },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, color: colors.gray[900] },
+
   filterRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
@@ -522,30 +543,77 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
   filterChipActive: {
-    borderColor: colors.indigo[500],
-    backgroundColor: colors.indigo[50],
+    borderColor: colors.teal[500],
+    backgroundColor: colors.teal[50],
   },
   filterChipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[500] },
-  filterChipLabelActive: { color: colors.indigo[600] },
-
-  summaryRow: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.gray[100],
-    marginBottom: 6,
-    overflow: "hidden",
-  },
-  summaryItem: { flex: 1, alignItems: "center", paddingVertical: 12 },
-  summaryLabel: { fontSize: 11, color: colors.gray[400], fontWeight: "600" },
-  summaryValue: { fontSize: 14, fontWeight: "800", marginTop: 2 },
-  summaryDivider: { width: 1, backgroundColor: colors.gray[100] },
+  filterChipLabelActive: { color: colors.teal[600] },
 
   list: { padding: 16, gap: 10 },
+
+  // Matched Hero Styles
+  hero: {
+    backgroundColor: colors.teal[700],
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 4,
+    gap: 4,
+  },
+  heroHeader: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  heroIconBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTextBlock: { flex: 1, gap: 3 },
+  heroEyebrow: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "rgba(204,251,241,0.7)",
+    letterSpacing: 1.4,
+  },
+  heroTitle: { fontSize: 20, fontWeight: "800", color: "#fff" },
+  heroSub: { fontSize: 12, color: "rgba(204,251,241,0.75)" },
+  heroStats: {
+    flexDirection: "row",
+    marginTop: 18,
+    backgroundColor: "rgba(0,0,0,0.12)",
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  heroStat: { flex: 1, alignItems: "center", paddingVertical: 12 },
+  heroStatLabel: {
+    fontSize: 10,
+    color: "rgba(204,251,241,0.8)",
+    fontWeight: "600",
+  },
+  heroStatValue: { fontSize: 14, fontWeight: "800", marginTop: 3 },
+  heroStatDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.1)" },
+  heroFooter: {
+    marginTop: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.15)",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  heroStatus: { flexDirection: "row", alignItems: "center", gap: 6 },
+  heroDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#99F6E4" },
+  heroStatusText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(204,251,241,0.8)",
+  },
+  heroTotal: { fontSize: 11, color: "rgba(204,251,241,0.6)" },
+
+  // Matched Account Card Actions for Transactions
   txnCard: {
     backgroundColor: "#fff",
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.gray[100],
     overflow: "hidden",
@@ -566,14 +634,16 @@ const s = StyleSheet.create({
   txnAmount: { fontSize: 14, fontWeight: "800" },
   typeBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   typeBadgeText: { fontSize: 10, fontWeight: "700" },
+
   txnExpanded: {
     borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopColor: colors.teal[50],
+    backgroundColor: colors.gray[50],
     padding: 14,
-    gap: 4,
+    gap: 8,
   },
   expandedNote: { fontSize: 12, color: colors.gray[500] },
-  actionRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  actionRow: { flexDirection: "row", gap: 8, marginTop: 4 },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -581,13 +651,25 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: colors.gray[50],
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: colors.gray[100],
+    borderColor: colors.teal[100],
   },
   actionLabel: { fontSize: 12, fontWeight: "600" },
-  empty: { alignItems: "center", gap: 12, paddingTop: 60 },
+
+  empty: { alignItems: "center", gap: 14, paddingTop: 60 },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.teal[50],
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.teal[100],
+  },
   emptyText: { fontSize: 15, color: colors.gray[400], fontWeight: "600" },
+
   pagination: {
     flexDirection: "row",
     alignItems: "center",
@@ -603,70 +685,17 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.gray[200],
+    borderColor: colors.teal[100],
   },
-  pageBtnDisabled: { borderColor: colors.gray[100] },
+  pageBtnDisabled: { opacity: 0.4 },
   pageLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
+
   errorText: { fontSize: 14, color: colors.red[500], textAlign: "center" },
   retryBtn: {
-    backgroundColor: colors.indigo[600],
+    backgroundColor: colors.teal[600],
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
   retryLabel: { color: "#fff", fontWeight: "700" },
-  hero: { borderRadius: 20, overflow: "hidden", marginBottom: 4 },
-  heroImage: { borderRadius: 20 },
-  heroContent: { padding: 20, backgroundColor: "rgba(15, 23, 42, 0.18)" },
-  heroHeader: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
-  heroIconBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroTextBlock: { flex: 1, gap: 3 },
-  heroEyebrow: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.65)",
-    textTransform: "uppercase",
-    letterSpacing: 1.4,
-  },
-  heroTitle: { fontSize: 20, fontWeight: "800", color: "#fff" },
-  heroSub: { fontSize: 12, color: "rgba(255,255,255,0.7)" },
-  heroStats: {
-    flexDirection: "row",
-    marginTop: 18,
-    backgroundColor: "rgba(0,0,0,0.15)",
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  heroStat: { flex: 1, alignItems: "center", paddingVertical: 12 },
-  heroStatLabel: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.6)",
-    fontWeight: "600",
-  },
-  heroStatValue: { fontSize: 14, fontWeight: "800", marginTop: 3 },
-  heroStatDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.12)" },
-  heroFooter: {
-    marginTop: 14,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.15)",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  heroStatus: { flexDirection: "row", alignItems: "center", gap: 6 },
-  heroDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#86EFAC" },
-  heroStatusText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.75)",
-  },
-  heroTotal: { fontSize: 11, color: "rgba(255,255,255,0.6)" },
 });

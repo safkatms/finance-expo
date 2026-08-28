@@ -1,13 +1,15 @@
 export const colors = {
-  indigo: {
-    50: '#EEF2FF',
-    100: '#E0E7FF',
-    200: '#C7D2FE',
-    300: '#A5B4FC',
-    400: '#818CF8',
-    500: '#6366F1',
-    600: '#4F46E5',
-    700: '#4338CA',
+  teal: {
+    50: '#E6FFFA',
+    100: '#B2F5EA',
+    200: '#81E6D9',
+    300: '#4FD1C5',
+    400: '#38B2AC',
+    500: '#2DD4BF',
+    600: '#0D9488',
+    700: '#0F766E',
+    800: '#115E59',
+    900: '#134E4A',
   },
   green: {
     50: "#f0fdf4",
@@ -35,9 +37,16 @@ export const colors = {
   },
   orange: {
     50: '#FFF7ED',
+    100: '#FFEDD5',
+    200: '#FED7AA',
+    300: '#FDBA74',
+    400: '#FB923C',
     500: '#F97316',
+    600: '#EA580C',
+    700: '#C2410C',
+    800: '#9A3412',
+    900: '#7C2D12',
   },
-
   gray: {
     50: '#F9FAFB',
     100: '#F3F4F6',
@@ -63,4 +72,9 @@ export const colors = {
     900: '#78350F',
   },
   white: '#FFFFFF',
-};
+  black: '#000000',
+  transparent: 'transparent',
+} as const;
+
+export type Colors = typeof colors;
+export type ColorKey = keyof Colors;

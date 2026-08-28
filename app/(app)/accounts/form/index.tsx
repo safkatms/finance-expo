@@ -35,6 +35,7 @@ const ACCOUNT_TYPES = [
   { value: "investment", label: "Investment" },
   { value: "other", label: "Other" },
 ];
+
 const ACCOUNT_ICONS = [
   "🏦",
   "💳",
@@ -57,24 +58,26 @@ const ACCOUNT_ICONS = [
   "🎯",
   "⭐",
 ];
+
 const ACCOUNT_COLORS = [
-  "#4F46E5", // Indigo
-  "#2563EB", // Blue
-  "#0EA5E9", // Sky
-  "#06B6D4", // Cyan
-  "#10B981", // Emerald
-  "#22C55E", // Green
-  "#84CC16", // Lime
-  "#EAB308", // Yellow
-  "#F59E0B", // Amber
-  "#F97316", // Orange
-  "#EF4444", // Red
-  "#EC4899", // Pink
-  "#D946EF", // Fuchsia
-  "#8B5CF6", // Violet
-  "#64748B", // Slate
-  "#334155", // Dark Slate
+  "#0D9488",
+  "#0F766E",
+  "#0EA5E9",
+  "#06B6D4",
+  "#10B981",
+  "#22C55E",
+  "#84CC16",
+  "#EAB308",
+  "#F59E0B",
+  "#F97316",
+  "#EF4444",
+  "#EC4899",
+  "#D946EF",
+  "#8B5CF6",
+  "#64748B",
+  "#334155",
 ];
+
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
   accountType: z.string().min(1, "Type is required"),
@@ -116,7 +119,7 @@ export default function AccountFormScreen() {
       institution: "",
       openingBalance: "0",
       currency: "BDT",
-      color: "#4F46E5",
+      color: "#0D9488",
       icon: "🏦",
       notes: "",
       includeInNetWorth: true,
@@ -183,19 +186,23 @@ export default function AccountFormScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Feather name="x" size={22} color={colors.gray[700]} />
+          <View style={s.headerIconBtn}>
+            <Feather name="x" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
         <Text style={s.headerTitle}>
-          {isEdit ? "Edit Account" : "New Account"}
+          {isEdit ? "Edit account" : "New account"}
         </Text>
         <TouchableOpacity
           onPress={handleSubmit((d) => saveMut.mutate(d))}
           hitSlop={8}
           disabled={isSubmitting || saveMut.isPending}
         >
-          <Text style={s.saveBtn}>
-            {saveMut.isPending ? "Saving…" : "Save"}
-          </Text>
+          <View style={s.saveBtn}>
+            <Text style={s.saveBtnLabel}>
+              {saveMut.isPending ? "Saving…" : "Save"}
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -216,19 +223,28 @@ export default function AccountFormScreen() {
 
         {/* Name */}
         <View style={s.field}>
-          <Text style={s.label}>Account Name *</Text>
+          <Text style={s.label}>Account name *</Text>
           <Controller
             control={control}
             name="name"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[s.input, errors.name && s.inputError]}
-                placeholder="e.g. BRAC Bank Savings"
-                placeholderTextColor={colors.gray[300]}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={[s.inputRow, errors.name && s.inputRowError]}>
+                <View style={s.inputPrefix}>
+                  <Feather
+                    name="credit-card"
+                    size={15}
+                    color={colors.teal[500]}
+                  />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="e.g. BRAC Bank Savings"
+                  placeholderTextColor={colors.gray[400]}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
           {errors.name && (
@@ -238,7 +254,7 @@ export default function AccountFormScreen() {
 
         {/* Account Type */}
         <View style={s.field}>
-          <Text style={s.label}>Account Type *</Text>
+          <Text style={s.label}>Account type *</Text>
           <Controller
             control={control}
             name="accountType"
@@ -264,10 +280,10 @@ export default function AccountFormScreen() {
             )}
           />
         </View>
+
         {/* Account Icon */}
         <View style={s.field}>
-          <Text style={s.label}>Account Icon</Text>
-
+          <Text style={s.label}>Account icon</Text>
           <Controller
             control={control}
             name="icon"
@@ -289,6 +305,7 @@ export default function AccountFormScreen() {
             )}
           />
         </View>
+
         {/* Institution */}
         <View style={s.field}>
           <Text style={s.label}>Institution</Text>
@@ -296,34 +313,44 @@ export default function AccountFormScreen() {
             control={control}
             name="institution"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={s.input}
-                placeholder="e.g. BRAC Bank"
-                placeholderTextColor={colors.gray[300]}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={s.inputRow}>
+                <View style={s.inputPrefix}>
+                  <Feather name="home" size={15} color={colors.teal[500]} />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="e.g. BRAC Bank"
+                  placeholderTextColor={colors.gray[400]}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
         </View>
 
         {/* Opening Balance */}
         <View style={s.field}>
-          <Text style={s.label}>Opening Balance</Text>
+          <Text style={s.label}>Opening balance</Text>
           <Controller
             control={control}
             name="openingBalance"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={s.input}
-                placeholder="0"
-                placeholderTextColor={colors.gray[300]}
-                keyboardType="numeric"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={s.inputRow}>
+                <View style={s.inputPrefix}>
+                  <Text style={s.currencySymbol}>৳</Text>
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="0"
+                  placeholderTextColor={colors.gray[400]}
+                  keyboardType="numeric"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
         </View>
@@ -335,23 +362,27 @@ export default function AccountFormScreen() {
             control={control}
             name="currency"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={s.input}
-                placeholder="BDT"
-                placeholderTextColor={colors.gray[300]}
-                autoCapitalize="characters"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={s.inputRow}>
+                <View style={s.inputPrefix}>
+                  <Feather name="globe" size={15} color={colors.teal[500]} />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="BDT"
+                  placeholderTextColor={colors.gray[400]}
+                  autoCapitalize="characters"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
         </View>
 
         {/* Account Color */}
         <View style={s.field}>
-          <Text style={s.label}>Account Color</Text>
-
+          <Text style={s.label}>Account color</Text>
           <Controller
             control={control}
             name="color"
@@ -368,7 +399,7 @@ export default function AccountFormScreen() {
                     ]}
                   >
                     {value === color && (
-                      <Feather name="check" size={18} color="#fff" />
+                      <Feather name="check" size={16} color="#fff" />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -384,24 +415,33 @@ export default function AccountFormScreen() {
             control={control}
             name="notes"
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[s.input, s.textarea]}
-                placeholder="Optional notes…"
-                placeholderTextColor={colors.gray[300]}
-                multiline
-                numberOfLines={3}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
+              <View style={[s.inputRow, s.textareaRow]}>
+                <View style={s.inputPrefixTop}>
+                  <Feather
+                    name="file-text"
+                    size={15}
+                    color={colors.teal[500]}
+                  />
+                </View>
+                <TextInput
+                  style={[s.textInput, s.textarea]}
+                  placeholder="Optional notes…"
+                  placeholderTextColor={colors.gray[400]}
+                  multiline
+                  numberOfLines={3}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
             )}
           />
         </View>
 
         {/* Include in Net Worth */}
         <View style={s.switchRow}>
-          <View>
-            <Text style={s.label}>Include in Net Worth</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.switchLabel}>Include in net worth</Text>
             <Text style={s.switchSub}>
               Counts this account toward your net worth total
             </Text>
@@ -413,10 +453,7 @@ export default function AccountFormScreen() {
               <Switch
                 value={value}
                 onValueChange={onChange}
-                trackColor={{
-                  false: colors.gray[200],
-                  true: colors.indigo[500],
-                }}
+                trackColor={{ false: colors.gray[200], true: colors.teal[400] }}
                 thumbColor="#fff"
               />
             )}
@@ -437,30 +474,74 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    backgroundColor: colors.teal[700],
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: colors.gray[900] },
-  saveBtn: { fontSize: 15, fontWeight: "700", color: colors.indigo[600] },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  headerIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtn: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  saveBtnLabel: { fontSize: 14, fontWeight: "700", color: "#fff" },
 
   content: { padding: 16, gap: 20 },
 
   field: { gap: 6 },
-  label: { fontSize: 13, fontWeight: "700", color: colors.gray[700] },
-  input: {
+  label: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.gray[600],
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginLeft: 2,
+  },
+
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderColor: colors.teal[100],
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  inputRowError: { borderColor: colors.red[400] },
+  inputPrefix: {
+    width: 44,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRightWidth: 1,
+    borderRightColor: colors.teal[50],
+  },
+  inputPrefixTop: {
+    width: 44,
+    paddingTop: 14,
+    alignItems: "center",
+    alignSelf: "flex-start",
+  },
+  textInput: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 12,
     fontSize: 15,
     color: colors.gray[900],
   },
-  inputError: { borderColor: colors.red[500] },
-  textarea: { height: 80, textAlignVertical: "top" },
-  fieldError: { fontSize: 12, color: colors.red[500], marginLeft: 2 },
+  textareaRow: { alignItems: "flex-start" },
+  textarea: { height: 88, paddingTop: 14, textAlignVertical: "top" },
+  currencySymbol: { fontSize: 16, fontWeight: "700", color: colors.teal[500] },
+  fieldError: { fontSize: 12, color: colors.red[500], marginLeft: 4 },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
@@ -472,29 +553,13 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
   chipSelected: {
-    borderColor: colors.indigo[500],
-    backgroundColor: colors.indigo[50],
+    borderColor: colors.teal[500],
+    backgroundColor: colors.teal[50],
   },
   chipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
-  chipLabelSelected: { color: colors.indigo[600] },
+  chipLabelSelected: { color: colors.teal[700] },
 
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.gray[100],
-  },
-  switchSub: { fontSize: 12, color: colors.gray[400], marginTop: 2 },
-  iconPicker: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-
+  iconPicker: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   iconOption: {
     width: 52,
     height: 52,
@@ -503,23 +568,15 @@ const s = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#fff",
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
+    borderColor: colors.teal[100],
   },
-
   iconOptionSelected: {
-    borderColor: colors.indigo[500],
-    backgroundColor: colors.indigo[50],
+    borderColor: colors.teal[500],
+    backgroundColor: colors.teal[50],
   },
+  iconText: { fontSize: 26 },
 
-  iconText: {
-    fontSize: 26,
-  },
-  colorPicker: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-
+  colorPicker: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   colorOption: {
     width: 42,
     height: 42,
@@ -527,17 +584,27 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   colorOptionSelected: {
     borderWidth: 3,
     borderColor: "#fff",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
   },
+
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1.5,
+    borderColor: colors.teal[100],
+  },
+  switchLabel: { fontSize: 14, fontWeight: "700", color: colors.gray[800] },
+  switchSub: { fontSize: 12, color: colors.gray[400], marginTop: 2 },
 });

@@ -150,16 +150,21 @@ export default function LoanDetailScreen() {
       style={[s.root, { paddingTop: insets.top }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={colors.gray[700]} />
+          <View style={s.headerIconBtn}>
+            <Feather name="arrow-left" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Loan Detail</Text>
-        {isActive && (
+        {isActive ? (
           <TouchableOpacity onPress={markWriteOff} hitSlop={8}>
-            <Text style={s.writeOffBtn}>Write Off</Text>
+            <View style={s.saveBtn}>
+              <Text style={s.saveBtnLabel}>Write Off</Text>
+            </View>
           </TouchableOpacity>
+        ) : (
+          <View style={{ width: 32 }} /> // Spacer for alignment
         )}
       </View>
 
@@ -171,7 +176,6 @@ export default function LoanDetailScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Hero card */}
         <View style={s.heroCard}>
           <View style={s.heroTop}>
             <View style={[s.dirBadge, { backgroundColor: dirColor + "18" }]}>
@@ -255,14 +259,17 @@ export default function LoanDetailScreen() {
           )}
         </View>
 
-        {/* Record Payment */}
         {isActive && (
           <View style={s.section}>
             <TouchableOpacity
               style={s.payBtn}
               onPress={() => setShowPayment((v) => !v)}
             >
-              <Feather name="plus-circle" size={16} color="#fff" />
+              <Feather
+                name={showPayment ? "x-circle" : "plus-circle"}
+                size={16}
+                color="#fff"
+              />
               <Text style={s.payBtnLabel}>
                 {showPayment ? "Cancel" : "Record Payment"}
               </Text>
@@ -274,25 +281,39 @@ export default function LoanDetailScreen() {
 
                 <View style={s.field}>
                   <Text style={s.label}>Amount *</Text>
-                  <TextInput
-                    style={s.input}
-                    placeholder="0"
-                    placeholderTextColor={colors.gray[300]}
-                    keyboardType="numeric"
-                    value={payAmount}
-                    onChangeText={setPayAmount}
-                  />
+                  <View style={s.inputRow}>
+                    <View style={s.inputPrefix}>
+                      <Text style={s.currencySymbol}>৳</Text>
+                    </View>
+                    <TextInput
+                      style={s.textInput}
+                      placeholder="0"
+                      placeholderTextColor={colors.gray[300]}
+                      keyboardType="numeric"
+                      value={payAmount}
+                      onChangeText={setPayAmount}
+                    />
+                  </View>
                 </View>
 
                 <View style={s.field}>
                   <Text style={s.label}>Payment Date *</Text>
-                  <TextInput
-                    style={s.input}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={colors.gray[300]}
-                    value={payDate}
-                    onChangeText={setPayDate}
-                  />
+                  <View style={s.inputRow}>
+                    <View style={s.inputPrefix}>
+                      <Feather
+                        name="calendar"
+                        size={15}
+                        color={colors.teal[500]}
+                      />
+                    </View>
+                    <TextInput
+                      style={s.textInput}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={colors.gray[300]}
+                      value={payDate}
+                      onChangeText={setPayDate}
+                    />
+                  </View>
                 </View>
 
                 <View style={s.field}>
@@ -324,13 +345,24 @@ export default function LoanDetailScreen() {
 
                 <View style={s.field}>
                   <Text style={s.label}>Note</Text>
-                  <TextInput
-                    style={s.input}
-                    placeholder="Optional note…"
-                    placeholderTextColor={colors.gray[300]}
-                    value={payNote}
-                    onChangeText={setPayNote}
-                  />
+                  <View style={[s.inputRow, s.textareaRow]}>
+                    <View style={s.inputPrefixTop}>
+                      <Feather
+                        name="align-left"
+                        size={15}
+                        color={colors.teal[500]}
+                      />
+                    </View>
+                    <TextInput
+                      style={[s.textInput, s.textarea]}
+                      placeholder="Optional note…"
+                      placeholderTextColor={colors.gray[300]}
+                      multiline
+                      numberOfLines={3}
+                      value={payNote}
+                      onChangeText={setPayNote}
+                    />
+                  </View>
                 </View>
 
                 <TouchableOpacity
@@ -386,18 +418,34 @@ export default function LoanDetailScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    backgroundColor: colors.teal[700],
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: colors.gray[900] },
-  writeOffBtn: { fontSize: 13, fontWeight: "700", color: colors.red[500] },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  headerIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtn: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  saveBtnLabel: { fontSize: 13, fontWeight: "700", color: "#fff" },
+
   content: { padding: 16, gap: 16 },
 
   heroCard: {
@@ -462,7 +510,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: colors.indigo[600],
+    backgroundColor: colors.teal[600],
     borderRadius: 14,
     paddingVertical: 14,
   },
@@ -478,17 +526,49 @@ const s = StyleSheet.create({
   },
   payError: { fontSize: 13, color: colors.red[500], fontWeight: "600" },
   field: { gap: 6 },
-  label: { fontSize: 13, fontWeight: "700", color: colors.gray[700] },
-  input: {
-    backgroundColor: colors.gray[50],
+  label: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.gray[600],
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginLeft: 2,
+  },
+
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderColor: colors.teal[100],
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  inputPrefix: {
+    width: 44,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRightWidth: 1,
+    borderRightColor: colors.teal[50],
+  },
+  inputPrefixTop: {
+    width: 44,
+    paddingTop: 14,
+    alignItems: "center",
+    alignSelf: "flex-start",
+  },
+  textInput: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 12,
     fontSize: 15,
     color: colors.gray[900],
   },
+  textareaRow: { alignItems: "flex-start" },
+  textarea: { height: 88, paddingTop: 14, textAlignVertical: "top" },
+  currencySymbol: { fontSize: 16, fontWeight: "700", color: colors.teal[500] },
+
   chipRow: { flexDirection: "row", gap: 8 },
   chip: {
     paddingHorizontal: 14,
@@ -499,11 +579,12 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
   chipSelected: {
-    borderColor: colors.indigo[500],
-    backgroundColor: colors.indigo[50],
+    borderColor: colors.teal[500],
+    backgroundColor: colors.teal[50],
   },
   chipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
-  chipLabelSelected: { color: colors.indigo[600] },
+  chipLabelSelected: { color: colors.teal[600] },
+
   submitBtn: {
     backgroundColor: colors.green[600],
     borderRadius: 12,
@@ -546,7 +627,7 @@ const s = StyleSheet.create({
 
   errorText: { fontSize: 14, color: colors.red[500], textAlign: "center" },
   retryBtn: {
-    backgroundColor: colors.indigo[600],
+    backgroundColor: colors.teal[600],
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,

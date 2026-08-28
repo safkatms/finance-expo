@@ -43,7 +43,7 @@ const IMPORTS: ImportConfig[] = [
     label: "Accounts",
     description: 'Sheet: "Accounts" · Columns: Account Name, Opening Balance',
     icon: "credit-card",
-    color: colors.indigo[600],
+    color: colors.teal[600],
     order: 1,
   },
   {
@@ -60,7 +60,7 @@ const IMPORTS: ImportConfig[] = [
     description:
       "Sheets named MMM-YYYY (e.g. Aug-2026) · Import accounts first",
     icon: "list",
-    color: colors.indigo[400],
+    color: colors.teal[400],
     order: 3,
   },
   {
@@ -244,7 +244,7 @@ export default function ImportScreen() {
       >
         {/* Info banner */}
         <View style={s.infoBanner}>
-          <Feather name="info" size={15} color={colors.indigo[600]} />
+          <Feather name="info" size={15} color={colors.teal[600]} />
           <Text style={s.infoText}>
             Import order matters: Accounts → Loans → Transactions → Loan
             Payments
@@ -342,16 +342,16 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    backgroundColor: colors.indigo[50],
+    backgroundColor: colors.teal[50],
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: colors.indigo[100],
+    borderColor: colors.teal[100],
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: colors.indigo[700],
+    color: colors.teal[700],
     lineHeight: 18,
   },
 

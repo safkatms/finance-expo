@@ -185,17 +185,21 @@ export default function LoansScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      {/* Header */}
+      {/* Header matched to Account Theme */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={colors.gray[700]} />
+          <View style={s.headerIconBtn}>
+            <Feather name="arrow-left" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Loans</Text>
         <TouchableOpacity
           onPress={() => router.push("/(app)/loans/form")}
           hitSlop={8}
         >
-          <Feather name="plus" size={22} color={colors.indigo[600]} />
+          <View style={s.addBtn}>
+            <Feather name="plus" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -288,17 +292,25 @@ export default function LoansScreen() {
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              colors={[colors.teal[600]]}
+              tintColor={colors.teal[600]}
+            />
           }
         >
           {loans.length === 0 ? (
             <View style={s.empty}>
-              <Feather name="users" size={40} color={colors.gray[300]} />
+              <View style={s.emptyIconWrap}>
+                <Feather name="users" size={28} color={colors.teal[400]} />
+              </View>
               <Text style={s.emptyText}>No loans found</Text>
               <TouchableOpacity
                 style={s.emptyBtn}
                 onPress={() => router.push("/(app)/loans/form")}
               >
+                <Feather name="plus" size={15} color="#fff" />
                 <Text style={s.emptyBtnLabel}>Record Loan</Text>
               </TouchableOpacity>
             </View>
@@ -328,7 +340,7 @@ export default function LoansScreen() {
                 <Feather
                   name="chevron-left"
                   size={18}
-                  color={page === 1 ? colors.gray[300] : colors.indigo[600]}
+                  color={page === 1 ? colors.gray[300] : colors.teal[600]}
                 />
               </TouchableOpacity>
               <Text style={s.pageLabel}>
@@ -348,7 +360,7 @@ export default function LoansScreen() {
                   color={
                     page === meta.totalPages
                       ? colors.gray[300]
-                      : colors.indigo[600]
+                      : colors.teal[600]
                   }
                 />
               </TouchableOpacity>
@@ -363,17 +375,34 @@ export default function LoansScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+
+  // Matched Header Styles
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    backgroundColor: colors.teal[700],
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: colors.gray[900] },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  headerIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -388,6 +417,7 @@ const s = StyleSheet.create({
   },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, color: colors.gray[900] },
+
   filterRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -404,13 +434,15 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
   filterChipActive: {
-    borderColor: colors.indigo[500],
-    backgroundColor: colors.indigo[50],
+    borderColor: colors.teal[500],
+    backgroundColor: colors.teal[50],
   },
   filterChipLabel: { fontSize: 12, fontWeight: "600", color: colors.gray[500] },
-  filterChipLabelActive: { color: colors.indigo[600] },
+  filterChipLabelActive: { color: colors.teal[600] },
   filterSep: { width: 1, backgroundColor: colors.gray[200], marginVertical: 2 },
+
   list: { padding: 16, gap: 10 },
+
   loanCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -429,6 +461,7 @@ const s = StyleSheet.create({
   loanAmount: { fontSize: 15, fontWeight: "800", color: colors.gray[900] },
   statusBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   statusText: { fontSize: 10, fontWeight: "700" },
+
   progressWrap: { gap: 4 },
   progressBg: {
     height: 5,
@@ -438,19 +471,36 @@ const s = StyleSheet.create({
   },
   progressFill: { height: 5, borderRadius: 3, minWidth: 4 },
   progressLabel: { fontSize: 11, color: colors.gray[400] },
+
   loanFooter: { flexDirection: "row", alignItems: "center", gap: 10 },
   loanDate: { fontSize: 11, color: colors.gray[400], flex: 1 },
   dueDate: { fontSize: 11, color: colors.gray[500], fontWeight: "600" },
   loanPurpose: { fontSize: 12, color: colors.gray[500], fontStyle: "italic" },
-  empty: { alignItems: "center", gap: 12, paddingTop: 60 },
+
+  // Matched Empty State
+  empty: { alignItems: "center", gap: 14, paddingTop: 60 },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.teal[50],
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.teal[100],
+  },
   emptyText: { fontSize: 15, color: colors.gray[400], fontWeight: "600" },
   emptyBtn: {
-    backgroundColor: colors.indigo[600],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.teal[600],
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
   emptyBtnLabel: { color: "#fff", fontWeight: "700", fontSize: 14 },
+
   pagination: {
     flexDirection: "row",
     alignItems: "center",
@@ -466,13 +516,14 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.gray[200],
+    borderColor: colors.teal[100],
   },
-  pageBtnDisabled: { borderColor: colors.gray[100] },
+  pageBtnDisabled: { opacity: 0.4 },
   pageLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
+
   errorText: { fontSize: 14, color: colors.red[500], textAlign: "center" },
   retryBtn: {
-    backgroundColor: colors.indigo[600],
+    backgroundColor: colors.teal[600],
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,

@@ -35,7 +35,7 @@ export function BottomNav() {
             <Feather
               name={icon as any}
               size={22}
-              color={active ? colors.indigo[600] : colors.gray[400]}
+              color={active ? colors.teal[600] : colors.gray[400]}
             />
             <Text
               style={[
@@ -66,6 +66,6 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   label: { fontSize: 10, fontWeight: "500" },
-  labelActive: { color: colors.indigo[600] },
+  labelActive: { color: colors.teal[600] },
   labelInactive: { color: colors.gray[400] },
 });

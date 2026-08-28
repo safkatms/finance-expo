@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
-  ImageBackground,
 } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,9 +39,7 @@ const ACCOUNT_TYPE_ICONS: Record<
 };
 
 const fmt = (v: string | number) =>
-  `৳${Number(v).toLocaleString("en-US", {
-    maximumFractionDigits: 0,
-  })}`;
+  `৳${Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
 function AccountCard({
   account,
@@ -68,13 +65,8 @@ function AccountCard({
   onToggleNetWorth: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-
   const iconName = ACCOUNT_TYPE_ICONS[account.accountType] ?? "circle";
-
-  const accentColor = account.color ?? colors.indigo[500];
-
-  const hasCustomIcon = !!account.icon;
-
+  const accentColor = account.color ?? colors.teal[500];
   const isFirst = index === 0;
   const isLast = index === totalAccounts - 1;
 
@@ -85,7 +77,6 @@ function AccountCard({
         onPress={() => setExpanded((v) => !v)}
         activeOpacity={0.7}
       >
-        {/* Account Icon */}
         <View
           style={[
             s.accountIconWrap,
@@ -95,37 +86,32 @@ function AccountCard({
             },
           ]}
         >
-          {hasCustomIcon ? (
+          {account.icon ? (
             <Text style={s.accountEmoji}>{account.icon}</Text>
           ) : (
             <Feather name={iconName} size={16} color={accentColor} />
           )}
         </View>
 
-        {/* Account Info */}
         <View style={s.accountInfo}>
           <View style={s.accountNameRow}>
             <Text style={s.accountName} numberOfLines={1}>
               {account.name}
             </Text>
-
             {account.isDefault && (
               <View style={s.defaultBadge}>
                 <Text style={s.defaultBadgeText}>Default</Text>
               </View>
             )}
           </View>
-
           <Text style={s.accountMeta}>
             {account.accountType.replace("_", " ")}
             {account.institution ? ` · ${account.institution}` : ""}
           </Text>
         </View>
 
-        {/* Balance */}
         <View style={s.accountRight}>
           <Text style={s.accountBalance}>{fmt(account.currentBalance)}</Text>
-
           <Feather
             name={expanded ? "chevron-up" : "chevron-down"}
             size={14}
@@ -134,32 +120,25 @@ function AccountCard({
         </View>
       </TouchableOpacity>
 
-      {/* Expanded Actions */}
       {expanded && (
         <View style={s.accountActions}>
-          {/* Account Details */}
           <View style={s.accountDetails}>
             <Text style={s.detailItem}>
               Opening: {fmt(account.openingBalance)}
             </Text>
-
             <Text style={s.detailItem}>
               Net worth: {account.includeInNetWorth ? "Included" : "Excluded"}
             </Text>
-
             {account.notes ? (
               <Text style={s.detailItem}>Note: {account.notes}</Text>
             ) : null}
           </View>
 
-          {/* Reorder */}
           <View style={s.reorderRow}>
             <View>
               <Text style={s.reorderLabel}>Display order</Text>
-
               <Text style={s.reorderHint}>Move this account up or down</Text>
             </View>
-
             <View style={s.reorderButtons}>
               <TouchableOpacity
                 style={[
@@ -176,11 +155,10 @@ function AccountCard({
                   color={
                     isFirst || reorderPending
                       ? colors.gray[300]
-                      : colors.gray[700]
+                      : colors.teal[600]
                   }
                 />
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[
                   s.reorderButton,
@@ -196,26 +174,17 @@ function AccountCard({
                   color={
                     isLast || reorderPending
                       ? colors.gray[300]
-                      : colors.gray[700]
+                      : colors.teal[600]
                   }
                 />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Actions */}
           <View style={s.actionRow}>
             <TouchableOpacity style={s.actionBtn} onPress={onEdit}>
-              <Feather name="edit-2" size={14} color={colors.indigo[600]} />
-
-              <Text
-                style={[
-                  s.actionLabel,
-                  {
-                    color: colors.indigo[600],
-                  },
-                ]}
-              >
+              <Feather name="edit-2" size={14} color={colors.teal[600]} />
+              <Text style={[s.actionLabel, { color: colors.teal[600] }]}>
                 Edit
               </Text>
             </TouchableOpacity>
@@ -223,16 +192,8 @@ function AccountCard({
             {!account.isDefault && (
               <TouchableOpacity style={s.actionBtn} onPress={onSetDefault}>
                 <Feather name="star" size={14} color={colors.amber[500]} />
-
-                <Text
-                  style={[
-                    s.actionLabel,
-                    {
-                      color: colors.amber[500],
-                    },
-                  ]}
-                >
-                  Set Default
+                <Text style={[s.actionLabel, { color: colors.amber[500] }]}>
+                  Set default
                 </Text>
               </TouchableOpacity>
             )}
@@ -243,30 +204,14 @@ function AccountCard({
                 size={14}
                 color={colors.gray[500]}
               />
-
-              <Text
-                style={[
-                  s.actionLabel,
-                  {
-                    color: colors.gray[500],
-                  },
-                ]}
-              >
+              <Text style={[s.actionLabel, { color: colors.gray[500] }]}>
                 {account.includeInNetWorth ? "Exclude NW" : "Include NW"}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={s.actionBtn} onPress={onDelete}>
               <Feather name="trash-2" size={14} color={colors.red[500]} />
-
-              <Text
-                style={[
-                  s.actionLabel,
-                  {
-                    color: colors.red[500],
-                  },
-                ]}
-              >
+              <Text style={[s.actionLabel, { color: colors.red[500] }]}>
                 Delete
               </Text>
             </TouchableOpacity>
@@ -289,70 +234,42 @@ export default function AccountsScreen() {
 
   const deleteMut = useMutation({
     mutationFn: deleteAccount,
-
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: ["accounts"],
-      });
-    },
-
-    onError: (error) => {
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["accounts"] }),
+    onError: (error) =>
       Alert.alert(
         "Error",
         getApiErrorMessage(error, "Failed to delete account"),
-      );
-    },
+      ),
   });
 
   const defaultMut = useMutation({
     mutationFn: setDefaultAccount,
-
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: ["accounts"],
-      });
-    },
-
-    onError: (error) => {
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["accounts"] }),
+    onError: (error) =>
       Alert.alert(
         "Error",
         getApiErrorMessage(error, "Failed to set default account"),
-      );
-    },
+      ),
   });
 
   const netWorthMut = useMutation({
     mutationFn: toggleNetWorth,
-
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: ["accounts"],
-      });
-    },
-
-    onError: (error) => {
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["accounts"] }),
+    onError: (error) =>
       Alert.alert(
         "Error",
         getApiErrorMessage(error, "Failed to update net worth setting"),
-      );
-    },
+      ),
   });
 
   const reorderMut = useMutation({
     mutationFn: reorderAccounts,
-
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: ["accounts"],
-      });
-    },
-
-    onError: (error) => {
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["accounts"] }),
+    onError: (error) =>
       Alert.alert(
         "Error",
         getApiErrorMessage(error, "Failed to reorder accounts"),
-      );
-    },
+      ),
   });
 
   const confirmDelete = (account: Account) => {
@@ -360,10 +277,7 @@ export default function AccountsScreen() {
       "Delete Account",
       `Delete "${account.name}"? This cannot be undone.`,
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
@@ -374,61 +288,42 @@ export default function AccountsScreen() {
   };
 
   const moveAccount = (index: number, direction: "up" | "down") => {
-    if (!data?.accounts || reorderMut.isPending) {
-      return;
-    }
-
+    if (!data?.accounts || reorderMut.isPending) return;
     const accounts = [...data.accounts];
-
     const newIndex = direction === "up" ? index - 1 : index + 1;
-
-    if (newIndex < 0 || newIndex >= accounts.length) {
-      return;
-    }
-
-    // Swap accounts locally
+    if (newIndex < 0 || newIndex >= accounts.length) return;
     [accounts[index], accounts[newIndex]] = [
       accounts[newIndex],
       accounts[index],
     ];
-
-    // Create clean sequential display orders
-    const reordered = accounts.map((account, i) => ({
-      id: account.id,
-      displayOrder: i,
-    }));
-
-    reorderMut.mutate(reordered);
+    reorderMut.mutate(
+      accounts.map((account, i) => ({ id: account.id, displayOrder: i })),
+    );
   };
 
+  const accounts = data?.accounts ?? [];
   const netWorth = data?.netWorth ?? 0;
 
   return (
-    <View
-      style={[
-        s.root,
-        {
-          paddingTop: insets.top,
-        },
-      ]}
-    >
+    <View style={[s.root, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={colors.gray[700]} />
+          <View style={s.headerIconBtn}>
+            <Feather name="arrow-left" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
-
         <Text style={s.headerTitle}>Accounts</Text>
-
         <TouchableOpacity
           onPress={() => router.push("/(app)/accounts/form")}
           hitSlop={8}
         >
-          <Feather name="plus" size={22} color={colors.indigo[600]} />
+          <View style={s.addBtn}>
+            <Feather name="plus" size={18} color="#fff" />
+          </View>
         </TouchableOpacity>
       </View>
 
-      {/* Loading */}
       {isLoading ? (
         <View style={s.center}>
           <Spinner />
@@ -438,7 +333,6 @@ export default function AccountsScreen() {
           <Text style={s.errorText}>
             {getApiErrorMessage(error, "Failed to load accounts")}
           </Text>
-
           <TouchableOpacity style={s.retryBtn} onPress={() => refetch()}>
             <Text style={s.retryLabel}>Retry</Text>
           </TouchableOpacity>
@@ -447,92 +341,82 @@ export default function AccountsScreen() {
         <ScrollView
           contentContainerStyle={[
             s.list,
-            {
-              paddingBottom: insets.bottom + 24,
-            },
+            { paddingBottom: insets.bottom + 24 },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              colors={[colors.indigo[600]]}
+              colors={[colors.teal[600]]}
+              tintColor={colors.teal[600]}
             />
           }
         >
           {/* Net Worth Hero */}
-          {data && data.accounts.length > 0 && (
-            <ImageBackground
-              source={require("../../../assets/sales-hero.png")}
-              style={s.netWorthHero}
-              imageStyle={s.netWorthHeroImage}
-              resizeMode="cover"
-            >
-              <View style={s.netWorthContent}>
-                <View style={s.netWorthHeader}>
-                  <View style={s.netWorthIconBadge}>
-                    <Feather name="trending-up" size={21} color="#fff" />
-                  </View>
-
-                  <View style={s.netWorthTextBlock}>
-                    <Text style={s.netWorthEyebrow}>Financial Overview</Text>
-
-                    <Text style={s.netWorthLabel}>Net Worth</Text>
-
-                    <Text style={s.netWorthSub}>
-                      {data.accounts.filter((a) => a.includeInNetWorth).length}{" "}
-                      accounts included
-                    </Text>
-                  </View>
+          {accounts.length > 0 && (
+            <View style={s.netWorthHero}>
+              <View style={s.netWorthTopRow}>
+                <View style={s.netWorthIconBadge}>
+                  <Feather name="trending-up" size={22} color="#fff" />
                 </View>
-
-                <Text style={s.netWorthValue}>{fmt(netWorth)}</Text>
-
-                <View style={s.netWorthFooter}>
-                  <View style={s.netWorthStatus}>
-                    <View style={s.netWorthDot} />
-
-                    <Text style={s.netWorthStatusText}>Current total</Text>
-                  </View>
-
-                  <Text style={s.netWorthAccountCount}>
-                    {data.accounts.length} accounts
+                <View style={s.netWorthTextBlock}>
+                  <Text style={s.netWorthEyebrow}>FINANCIAL OVERVIEW</Text>
+                  <Text style={s.netWorthLabel}>Net worth</Text>
+                  <Text style={s.netWorthSub}>
+                    {accounts.filter((a) => a.includeInNetWorth).length}{" "}
+                    accounts included
                   </Text>
                 </View>
               </View>
-            </ImageBackground>
+
+              <Text style={s.netWorthValue}>{fmt(netWorth)}</Text>
+
+              <View style={s.netWorthFooter}>
+                <View style={s.netWorthStatus}>
+                  <View style={s.netWorthDot} />
+                  <Text style={s.netWorthStatusText}>Current total</Text>
+                </View>
+                <Text style={s.netWorthAccountCount}>
+                  {accounts.length} accounts
+                </Text>
+              </View>
+            </View>
           )}
 
           {/* Account List */}
-          {data?.accounts.length === 0 ? (
+          {accounts.length === 0 ? (
             <View style={s.empty}>
-              <Feather name="credit-card" size={40} color={colors.gray[300]} />
-
+              <View style={s.emptyIconWrap}>
+                <Feather
+                  name="credit-card"
+                  size={28}
+                  color={colors.teal[400]}
+                />
+              </View>
               <Text style={s.emptyText}>No accounts yet</Text>
-
               <TouchableOpacity
                 style={s.emptyBtn}
                 onPress={() => router.push("/(app)/accounts/form")}
               >
-                <Text style={s.emptyBtnLabel}>Add Account</Text>
+                <Feather name="plus" size={15} color="#fff" />
+                <Text style={s.emptyBtnLabel}>Add account</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            data?.accounts.map((account, index) => (
+            accounts.map((account, index) => (
               <AccountCard
                 key={account.id}
                 account={account}
                 index={index}
-                totalAccounts={data.accounts.length}
+                totalAccounts={accounts.length}
                 reorderPending={reorderMut.isPending}
                 onMoveUp={() => moveAccount(index, "up")}
                 onMoveDown={() => moveAccount(index, "down")}
                 onEdit={() =>
                   router.push({
                     pathname: "/(app)/accounts/form",
-                    params: {
-                      id: account.id,
-                    },
+                    params: { id: account.id },
                   })
                 }
                 onDelete={() => confirmDelete(account)}
@@ -548,137 +432,91 @@ export default function AccountsScreen() {
 }
 
 const s = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.gray[50],
-  },
+  root: { flex: 1, backgroundColor: colors.gray[50] },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
 
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-
-  /* Header */
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    backgroundColor: colors.teal[700],
   },
-
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.gray[900],
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  headerIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  /* Scroll List */
-  list: {
-    padding: 16,
-    gap: 10,
-  },
-
-  /* Net Worth Hero */
-  netWorthHero: {
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-
-  netWorthHeroImage: {
-    borderRadius: 20,
-  },
-
-  netWorthContent: {
-    padding: 20,
-    backgroundColor: "rgba(15, 23, 42, 0.18)",
-  },
-
-  netWorthHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 14,
-  },
-
-  netWorthIconBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  netWorthTextBlock: {
-    flex: 1,
-    gap: 3,
-  },
+  list: { padding: 16, gap: 10 },
 
+  /* Net Worth Hero */
+  netWorthHero: {
+    backgroundColor: colors.teal[700],
+    borderRadius: 20,
+    padding: 20,
+    gap: 4,
+  },
+  netWorthTopRow: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  netWorthIconBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  netWorthTextBlock: { flex: 1, gap: 3 },
   netWorthEyebrow: {
     fontSize: 10,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.65)",
-    textTransform: "uppercase",
+    fontWeight: "800",
+    color: "rgba(204,251,241,0.7)",
     letterSpacing: 1.4,
   },
-
-  netWorthLabel: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#fff",
-  },
-
-  netWorthSub: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.7)",
-  },
-
+  netWorthLabel: { fontSize: 20, fontWeight: "800", color: "#fff" },
+  netWorthSub: { fontSize: 12, color: "rgba(204,251,241,0.75)" },
   netWorthValue: {
-    marginTop: 18,
-    fontSize: 30,
-    fontWeight: "800",
+    marginTop: 16,
+    fontSize: 34,
+    fontWeight: "900",
     color: "#fff",
     letterSpacing: -0.5,
   },
-
   netWorthFooter: {
-    marginTop: 16,
-    paddingTop: 10,
+    marginTop: 14,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.15)",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
-  netWorthStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-
+  netWorthStatus: { flexDirection: "row", alignItems: "center", gap: 6 },
   netWorthDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: "#86EFAC",
+    backgroundColor: "#99F6E4",
   },
-
   netWorthStatusText: {
     fontSize: 11,
     fontWeight: "600",
-    color: "rgba(255,255,255,0.75)",
+    color: "rgba(204,251,241,0.8)",
   },
-
-  netWorthAccountCount: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.6)",
-  },
+  netWorthAccountCount: { fontSize: 11, color: "rgba(204,251,241,0.6)" },
 
   /* Account Card */
   accountCard: {
@@ -688,14 +526,12 @@ const s = StyleSheet.create({
     borderColor: colors.gray[100],
     overflow: "hidden",
   },
-
   accountMain: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
     gap: 12,
   },
-
   accountIconWrap: {
     width: 36,
     height: 36,
@@ -704,126 +540,69 @@ const s = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
   },
-
-  accountEmoji: {
-    fontSize: 22,
-    lineHeight: 26,
-  },
-
-  accountInfo: {
-    flex: 1,
-  },
-
-  accountNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-
+  accountEmoji: { fontSize: 22, lineHeight: 26 },
+  accountInfo: { flex: 1 },
+  accountNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   accountName: {
     flexShrink: 1,
     fontSize: 15,
     fontWeight: "700",
     color: colors.gray[900],
   },
-
   defaultBadge: {
-    backgroundColor: colors.indigo[50],
+    backgroundColor: colors.teal[50],
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: colors.teal[100],
   },
-
   defaultBadgeText: {
     fontSize: 10,
     fontWeight: "700",
-    color: colors.indigo[600],
+    color: colors.teal[700],
   },
-
   accountMeta: {
     fontSize: 12,
     color: colors.gray[400],
     marginTop: 2,
     textTransform: "capitalize",
   },
+  accountRight: { alignItems: "flex-end", gap: 4 },
+  accountBalance: { fontSize: 15, fontWeight: "800", color: colors.gray[900] },
 
-  accountRight: {
-    alignItems: "flex-end",
-    gap: 4,
-  },
-
-  accountBalance: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: colors.gray[900],
-  },
-
-  /* Expanded Account */
   accountActions: {
     borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopColor: colors.teal[50],
+    backgroundColor: colors.gray[50],
     padding: 14,
     gap: 12,
   },
+  accountDetails: { gap: 4 },
+  detailItem: { fontSize: 12, color: colors.gray[500] },
 
-  accountDetails: {
-    gap: 4,
-  },
-
-  detailItem: {
-    fontSize: 12,
-    color: colors.gray[500],
-  },
-
-  /* Reorder */
   reorderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 2,
   },
-
-  reorderLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.gray[600],
-  },
-
-  reorderHint: {
-    fontSize: 10,
-    color: colors.gray[400],
-    marginTop: 2,
-  },
-
-  reorderButtons: {
-    flexDirection: "row",
-    gap: 6,
-  },
-
+  reorderLabel: { fontSize: 12, fontWeight: "600", color: colors.gray[600] },
+  reorderHint: { fontSize: 10, color: colors.gray[400], marginTop: 2 },
+  reorderButtons: { flexDirection: "row", gap: 6 },
   reorderButton: {
     width: 34,
     height: 34,
     borderRadius: 9,
-    backgroundColor: colors.gray[50],
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: colors.gray[200],
+    borderColor: colors.teal[100],
     alignItems: "center",
     justifyContent: "center",
   },
+  reorderButtonDisabled: { opacity: 0.4 },
 
-  reorderButtonDisabled: {
-    backgroundColor: colors.gray[50],
-    borderColor: colors.gray[100],
-    opacity: 0.6,
-  },
-
-  /* Actions */
-  actionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-
+  actionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -831,58 +610,41 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: colors.gray[50],
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: colors.gray[100],
+    borderColor: colors.teal[100],
   },
+  actionLabel: { fontSize: 12, fontWeight: "600" },
 
-  actionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
-  /* Empty */
-  empty: {
+  empty: { alignItems: "center", gap: 14, paddingTop: 60 },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.teal[50],
     alignItems: "center",
-    gap: 12,
-    paddingTop: 60,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.teal[100],
   },
-
-  emptyText: {
-    fontSize: 15,
-    color: colors.gray[400],
-    fontWeight: "600",
-  },
-
+  emptyText: { fontSize: 15, color: colors.gray[400], fontWeight: "600" },
   emptyBtn: {
-    backgroundColor: colors.indigo[600],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.teal[600],
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
+  emptyBtnLabel: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
-  emptyBtnLabel: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-
-  /* Error */
-  errorText: {
-    fontSize: 14,
-    color: colors.red[500],
-    textAlign: "center",
-  },
-
+  errorText: { fontSize: 14, color: colors.red[500], textAlign: "center" },
   retryBtn: {
-    backgroundColor: colors.indigo[600],
+    backgroundColor: colors.teal[600],
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
-
-  retryLabel: {
-    color: "#fff",
-    fontWeight: "700",
-  },
+  retryLabel: { color: "#fff", fontWeight: "700" },
 });
