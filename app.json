@@ -1,14 +1,14 @@
 {
   "expo": {
     "name": "Finance App",
-    "slug": "finance-app",
+    "slug": "finance-expo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "finance-app",
+    "scheme": "finance-expo",
     "platforms": ["ios", "android"],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.finance-app.app",
+      "bundleIdentifier": "com.finance-expo.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
