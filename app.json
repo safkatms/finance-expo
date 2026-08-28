@@ -14,9 +14,9 @@
       }
     },
     "android": {
-      "icon": "./assets/skinO.png",
+      "icon": "./assets/finance.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/skinO-foreground.png",
+        "foregroundImage": "./assets/finance-foreground.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.finance.app"
