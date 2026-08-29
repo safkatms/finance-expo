@@ -579,13 +579,13 @@ export default function DashboardScreen() {
       </View>
 
       {/* PINNED CATEGORIES */}
-      {data.pinnedCategories.length > 0 && (
-        <View style={styles.section}>
-          <SectionHeader
-            title="Pinned categories"
-            onPress={() => router.push("/(app)/categories")}
-            actionLabel="Manage"
-          />
+      <View style={styles.section}>
+        <SectionHeader
+          title="Pinned categories"
+          onPress={() => router.push("/(app)/categories")}
+          actionLabel="Manage"
+        />
+        {data.pinnedCategories.length > 0 ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -595,8 +595,25 @@ export default function DashboardScreen() {
               <PinnedCategoryCard key={item.categoryId} item={item} />
             ))}
           </ScrollView>
-        </View>
-      )}
+        ) : (
+          <TouchableOpacity
+            style={styles.pinnedEmptyState}
+            onPress={() => router.push("/(app)/categories")}
+            activeOpacity={0.75}
+          >
+            <Feather name="bookmark" size={18} color={colors.teal[400]} />
+            <Text style={styles.pinnedEmptyText}>
+              Pin categories to track them here
+            </Text>
+            <View style={styles.pinnedEmptyAction}>
+              <Text style={styles.pinnedEmptyActionText}>
+                Manage categories
+              </Text>
+              <Feather name="arrow-right" size={13} color={colors.teal[600]} />
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* ACCOUNTS */}
       {data.accounts.length > 0 && (
@@ -1381,4 +1398,32 @@ const styles = StyleSheet.create({
   },
   pinnedTotal: { fontSize: 16, fontWeight: "900", marginTop: 2 },
   pinnedLabel: { fontSize: 10, fontWeight: "600", color: colors.gray[400] },
+  pinnedEmptyState: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 17,
+    borderWidth: 1.5,
+    borderColor: colors.teal[100],
+    borderStyle: "dashed",
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    gap: 6,
+  },
+  pinnedEmptyText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.gray[400],
+    textAlign: "center",
+  },
+  pinnedEmptyAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  pinnedEmptyActionText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.teal[600],
+  },
 });
