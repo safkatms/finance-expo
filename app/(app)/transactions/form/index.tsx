@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   createTransaction,
   updateTransaction,
@@ -76,8 +77,19 @@ const schema = z
 
 type FormData = z.infer<typeof schema>;
 
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+function fmt(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function displayFmt(iso: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
 function todayISO() {
-  return new Date().toISOString().split("T")[0];
+  return fmt(new Date());
 }
 
 function AccountPicker({
@@ -174,6 +186,7 @@ export default function TransactionFormScreen() {
     type?: "Income" | "Expense" | "Transfer";
   }>();
   const isEdit = !!id;
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const { data: existing, isLoading: loadingExisting } = useQuery({
     queryKey: ["transaction", id],
@@ -182,10 +195,9 @@ export default function TransactionFormScreen() {
   });
 
   const { data: accountsData } = useQuery({
-    queryKey: ["accounts"],
+    queryKey: ["accounts-list"],
     queryFn: getAccounts,
   });
-
   const { data: categoriesData } = useQuery({
     queryKey: ["categories"],
     queryFn: getCategories,
@@ -219,6 +231,7 @@ export default function TransactionFormScreen() {
   });
 
   const txnType = watch("type");
+  const txnDate = watch("txnDate");
 
   useEffect(() => {
     if (existing) {
@@ -256,7 +269,7 @@ export default function TransactionFormScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["accounts-list"] });
       router.back();
     },
   });
@@ -356,29 +369,65 @@ export default function TransactionFormScreen() {
         {/* Date */}
         <View style={s.field}>
           <Text style={s.label}>Date *</Text>
-          <Controller
-            control={control}
-            name="txnDate"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <View style={[s.inputRow, errors.txnDate && s.inputRowError]}>
-                <View style={s.inputPrefix}>
-                  <Feather name="calendar" size={15} color={colors.teal[500]} />
-                </View>
-                <TextInput
-                  style={s.textInput}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.gray[400]}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                />
-              </View>
-            )}
-          />
+          <TouchableOpacity
+            style={[s.inputRow, errors.txnDate && s.inputRowError]}
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.7}
+          >
+            <View style={s.inputPrefix}>
+              <Feather name="calendar" size={15} color={colors.teal[500]} />
+            </View>
+            <Text
+              style={[
+                s.textInput,
+                s.dateText,
+                !txnDate && { color: colors.gray[400] },
+              ]}
+            >
+              {txnDate ? displayFmt(txnDate) : "Select date"}
+            </Text>
+          </TouchableOpacity>
           {errors.txnDate && (
             <Text style={s.fieldError}>{errors.txnDate.message}</Text>
           )}
+
+          {showDatePicker && Platform.OS === "android" && (
+            <DateTimePicker
+              mode="date"
+              display="default"
+              value={txnDate ? new Date(txnDate) : new Date()}
+              maximumDate={new Date()}
+              onChange={(_, date) => {
+                setShowDatePicker(false);
+                if (date)
+                  setValue("txnDate", fmt(date), { shouldValidate: true });
+              }}
+            />
+          )}
         </View>
+
+        {/* iOS date picker inline */}
+        {showDatePicker && Platform.OS === "ios" && (
+          <View style={s.iosPickerWrap}>
+            <View style={s.iosPickerHeader}>
+              <Text style={s.iosPickerTitle}>Select date</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={s.iosPickerDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              mode="date"
+              display="spinner"
+              value={txnDate ? new Date(txnDate) : new Date()}
+              maximumDate={new Date()}
+              onChange={(_, date) => {
+                if (date)
+                  setValue("txnDate", fmt(date), { shouldValidate: true });
+              }}
+              themeVariant="light"
+            />
+          </View>
+        )}
 
         {/* Amount */}
         <View style={s.field}>
@@ -616,6 +665,7 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: colors.gray[900],
   },
+  dateText: { lineHeight: 50 },
   textareaRow: { alignItems: "flex-start" },
   textarea: { height: 88, paddingTop: 14, textAlignVertical: "top" },
   currencySymbol: { fontSize: 16, fontWeight: "700", color: colors.teal[500] },
@@ -648,4 +698,23 @@ const s = StyleSheet.create({
   },
   chipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
   chipLabelSelected: { color: colors.teal[700] },
+
+  iosPickerWrap: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.teal[50],
+    overflow: "hidden",
+  },
+  iosPickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
+  },
+  iosPickerTitle: { fontSize: 14, fontWeight: "600", color: colors.gray[700] },
+  iosPickerDone: { fontSize: 14, fontWeight: "700", color: colors.teal[600] },
 });

@@ -25,6 +25,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { colors } from "@/components/ui/theme";
 import type { Account } from "@/types/finance";
 import Feather from "@expo/vector-icons/Feather";
+import { AccountStatementModal } from "@/components/ui/AccountStatementModal";
 
 const ACCOUNT_TYPE_ICONS: Record<
   string,
@@ -52,6 +53,7 @@ function AccountCard({
   onDelete,
   onSetDefault,
   onToggleNetWorth,
+  onStatement,
 }: {
   account: Account;
   index: number;
@@ -63,6 +65,7 @@ function AccountCard({
   onDelete: () => void;
   onSetDefault: () => void;
   onToggleNetWorth: () => void;
+  onStatement: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const iconName = ACCOUNT_TYPE_ICONS[account.accountType] ?? "circle";
@@ -188,7 +191,12 @@ function AccountCard({
                 Edit
               </Text>
             </TouchableOpacity>
-
+            <TouchableOpacity style={s.actionBtn} onPress={onStatement}>
+              <Feather name="file-text" size={14} color={colors.teal[600]} />
+              <Text style={[s.actionLabel, { color: colors.teal[600] }]}>
+                Statement
+              </Text>
+            </TouchableOpacity>
             {!account.isDefault && (
               <TouchableOpacity style={s.actionBtn} onPress={onSetDefault}>
                 <Feather name="star" size={14} color={colors.amber[500]} />
@@ -197,7 +205,6 @@ function AccountCard({
                 </Text>
               </TouchableOpacity>
             )}
-
             <TouchableOpacity style={s.actionBtn} onPress={onToggleNetWorth}>
               <Feather
                 name={account.includeInNetWorth ? "eye-off" : "eye"}
@@ -208,7 +215,6 @@ function AccountCard({
                 {account.includeInNetWorth ? "Exclude NW" : "Include NW"}
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={s.actionBtn} onPress={onDelete}>
               <Feather name="trash-2" size={14} color={colors.red[500]} />
               <Text style={[s.actionLabel, { color: colors.red[500] }]}>
@@ -226,7 +232,9 @@ export default function AccountsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
-
+  const [statementAccount, setStatementAccount] = useState<Account | null>(
+    null,
+  );
   const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ["accounts"],
     queryFn: getAccountsWithNetWorth,
@@ -422,10 +430,18 @@ export default function AccountsScreen() {
                 onDelete={() => confirmDelete(account)}
                 onSetDefault={() => defaultMut.mutate(account.id)}
                 onToggleNetWorth={() => netWorthMut.mutate(account.id)}
+                onStatement={() => setStatementAccount(account)}
               />
             ))
           )}
         </ScrollView>
+      )}
+      {statementAccount && (
+        <AccountStatementModal
+          account={statementAccount}
+          visible={!!statementAccount}
+          onClose={() => setStatementAccount(null)}
+        />
       )}
     </View>
   );

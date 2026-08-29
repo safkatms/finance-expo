@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -27,6 +27,7 @@ import type {
   CategoryBreakdownItem,
   PinnedCategory,
 } from "@/types/finance";
+import { setTokens } from "@/lib/axios";
 
 const fmt = (value: number) =>
   `৳${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -372,14 +373,36 @@ function PinnedCategoryCard({ item }: { item: PinnedCategory }) {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, setAuthenticated, setUser } = useAuthStore();
   const [month] = useState<string | undefined>(undefined);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ["dashboard", month],
     queryFn: () => getDashboard(month),
   });
+  const {
+    user,
+    setAuthenticated,
+    setUser,
+    originalAdmin,
+    adminToken,
+    clearImpersonation,
+  } = useAuthStore();
+  const queryClient = useQueryClient();
+  const isImpersonating = !!originalAdmin && !!adminToken;
 
+  const handleExitImpersonation = async () => {
+    try {
+      await setTokens(adminToken!, null);
+      setUser(originalAdmin);
+      clearImpersonation();
+      await queryClient.invalidateQueries();
+    } catch {
+      await logout();
+      setAuthenticated(false);
+      setUser(null);
+      router.replace("/(auth)/login");
+    }
+  };
   const handleLogout = async () => {
     await logout();
     setAuthenticated(false);
@@ -441,13 +464,31 @@ export default function DashboardScreen() {
             <Text style={styles.heroEyebrow}>FINANCIAL OVERVIEW</Text>
             <Text style={styles.heroGreeting}>{greeting}</Text>
           </View>
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={styles.logoutButton}
-            hitSlop={8}
-          >
-            <Feather name="log-out" size={17} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
+          <View style={styles.heroActions}>
+            {(user?.role === "admin" || isImpersonating) && (
+              <TouchableOpacity
+                onPress={() => router.push("/(app)/switch-user")}
+                style={styles.heroActionButton}
+                hitSlop={8}
+              >
+                <Feather name="users" size={17} color="rgba(255,255,255,0.9)" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => router.push("/(app)/change-password")}
+              style={styles.heroActionButton}
+              hitSlop={8}
+            >
+              <Feather name="lock" size={17} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.heroActionButton}
+              hitSlop={8}
+            >
+              <Feather name="log-out" size={17} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.netWorthBlock}>
@@ -535,7 +576,29 @@ export default function DashboardScreen() {
           </Text>
         </View>
       </View>
-
+      {isImpersonating && (
+        <View style={styles.impersonationBanner}>
+          <View style={styles.impersonationLeft}>
+            <View style={styles.impersonationIcon}>
+              <Feather name="eye" size={14} color={colors.teal[700]} />
+            </View>
+            <View>
+              <Text style={styles.impersonationLabel}>Viewing as</Text>
+              <Text style={styles.impersonationName}>
+                {user?.firstName} {user?.lastName}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.exitButton}
+            onPress={handleExitImpersonation}
+            activeOpacity={0.8}
+          >
+            <Feather name="log-out" size={13} color={colors.teal[700]} />
+            <Text style={styles.exitButtonText}>Exit</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {/* QUICK ACTIONS */}
       <View style={styles.section}>
         <SectionHeader title="Quick actions" />
@@ -1425,5 +1488,74 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: colors.teal[600],
+  },
+  heroActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  heroActionButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+  },
+  impersonationBanner: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.teal[50],
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.teal[100],
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+  },
+  impersonationLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  impersonationIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.teal[100],
+  },
+  impersonationLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: colors.teal[600],
+  },
+  impersonationName: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.teal[800],
+  },
+  exitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#fff",
+    borderRadius: 9,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: colors.teal[200],
+  },
+  exitButtonText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.teal[700],
   },
 });

@@ -223,3 +223,35 @@ export interface PaginatedData<T> {
         savings: number;
     };
 }
+
+// Add to finance.ts
+export interface AccountStatementRow {
+    id: number;
+    entryDate: string;
+    period: string;
+    transactionId: number;
+    type: TxnType;
+    description: string | null;
+    referenceNumber: string | null;
+    category: { id: number; name: string; icon: string | null } | null;
+    credit: number;
+    debit: number;
+    balance: number;
+}
+
+export interface AccountStatement {
+    account: {
+        id: number;
+        name: string;
+        accountType: AccountType;
+        color: string | null;
+        openingBalance: number;
+    };
+    openingBalance: number;
+    fromDate: string | null;
+    toDate: string | null;
+    totalCredit: number;
+    totalDebit: number;
+    closingBalance: number;
+    rows: AccountStatementRow[];
+}

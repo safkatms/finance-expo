@@ -70,7 +70,7 @@ export default function LoginScreen() {
         {/* Logo block */}
         <View style={styles.logoBlock}>
           <Image
-            source={require("../../../assets/finance.png")}
+            source={require("../../../assets/finance-foreground.png")}
             style={styles.logo}
             resizeMode="contain"
           />

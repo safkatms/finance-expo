@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from '@/store/auth.store';
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.0.105:3000/api/v1';
 
@@ -41,6 +42,12 @@ api.interceptors.response.use(
 // ── Response 2: 401 refresh flow ───────────────────────────────────────────
 let refreshing: Promise<string> | null = null;
 
+async function forceLogout() {
+  await clearTokens();
+  useAuthStore.getState().setUser(null);
+  useAuthStore.getState().setAuthenticated(false);
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (err: AxiosError) => {
@@ -51,7 +58,7 @@ api.interceptors.response.use(
       const refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
 
       if (!refreshToken) {
-        await clearTokens();
+        await forceLogout();
         return Promise.reject(err);
       }
 
@@ -74,7 +81,7 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${newToken}`;
         return api(original);
       } catch {
-        await clearTokens();
+        await forceLogout();
         return Promise.reject(err);
       }
     }
@@ -83,9 +90,11 @@ api.interceptors.response.use(
   },
 );
 
-export async function setTokens(access: string, refresh: string) {
+export async function setTokens(access: string, refresh: string | null) {
   await SecureStore.setItemAsync(TOKEN_KEY, access);
-  await SecureStore.setItemAsync(REFRESH_KEY, refresh);
+  if (refresh !== null) {
+    await SecureStore.setItemAsync(REFRESH_KEY, refresh);
+  }
 }
 
 export async function clearTokens() {

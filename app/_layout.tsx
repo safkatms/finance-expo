@@ -5,15 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAuthStore } from "@/store/auth.store";
 import { getAccessToken } from "@/lib/axios";
 import { getMe } from "@/lib/auth";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 1000 * 60 * 5,
-    },
-  },
-});
+import { queryClient } from "@/lib/query-client";
 
 export default function RootLayout() {
   const { setAuthenticated, setLoading, setUser } = useAuthStore();
