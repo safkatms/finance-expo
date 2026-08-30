@@ -41,7 +41,19 @@ export async function createTransaction(payload: CreateTransactionPayload): Prom
     return res.data.data!;
 }
 
-export async function updateTransaction(id: number, payload: Partial<CreateTransactionPayload>): Promise<Transaction> {
+export interface UpdateTransactionPayload {
+    txnDate?: string;
+    type?: string;
+    amount?: number;
+    categoryId?: number;
+    fromAccountId?: number;
+    toAccountId?: number;
+    description?: string;
+    note?: string;
+    referenceNumber?: string;
+}
+
+export async function updateTransaction(id: number, payload: UpdateTransactionPayload): Promise<Transaction> {
     const res = await api.patch<ApiResponse<Transaction>>(`/transactions/${id}`, payload);
     return res.data.data!;
 }

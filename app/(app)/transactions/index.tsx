@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,16 +8,23 @@ import {
   RefreshControl,
   Alert,
   TextInput,
+  Modal,
+  FlatList,
 } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { getTransactions, deleteTransaction } from "@/lib/api/transactions.api";
+import { getCategories } from "@/lib/api/categories.api";
+import { getAccounts } from "@/lib/api/accounts.api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { Spinner } from "@/components/ui/Spinner";
 import { colors } from "@/components/ui/theme";
 import type { Transaction, TxnType } from "@/types/finance";
 import Feather from "@expo/vector-icons/Feather";
+import { Platform } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const TYPE_COLORS: Record<TxnType, string> = {
   Income: colors.green[500],
@@ -58,16 +65,381 @@ function currentMonth() {
 
 function shiftMonth(month: string, delta: number): string {
   const parts = month.split("-");
-  const mon = parts[0];
-  const year = parseInt(parts[1], 10);
-  const idx = MONTH_NAMES.indexOf(mon);
-  const d = new Date(year, idx + delta, 1);
+  const idx = MONTH_NAMES.indexOf(parts[0]);
+  const d = new Date(parseInt(parts[1], 10), idx + delta, 1);
   return `${MONTH_NAMES[d.getMonth()]}-${d.getFullYear()}`;
 }
 
 const fmt = (v: number | string) =>
   `৳${Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
+// ─── Filter state type ───────────────────────────────────────────────────────
+interface Filters {
+  mode: "month" | "range"; // month picker vs custom date range
+  month: string;
+  fromDate: string;
+  toDate: string;
+  type: string;
+  categoryId: number | undefined;
+  accountId: number | undefined;
+  search: string;
+}
+
+const DEFAULT_FILTERS: Filters = {
+  mode: "month",
+  month: currentMonth(),
+  fromDate: "",
+  toDate: "",
+  type: "",
+  categoryId: undefined,
+  accountId: undefined,
+  search: "",
+};
+
+function activeFilterCount(f: Filters) {
+  let n = 0;
+  if (f.type) n++;
+  if (f.categoryId) n++;
+  if (f.accountId) n++;
+  if (f.mode === "range" && (f.fromDate || f.toDate)) n++;
+  return n;
+}
+
+// ─── Picker Modal ────────────────────────────────────────────────────────────
+function PickerModal<T extends { id: number | string; name: string }>({
+  visible,
+  title,
+  items,
+  selected,
+  onSelect,
+  onClose,
+  allowAll,
+}: {
+  visible: boolean;
+  title: string;
+  items: T[];
+  selected: number | string | undefined;
+  onSelect: (id: number | undefined) => void;
+  onClose: () => void;
+  allowAll?: boolean;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={pm.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      />
+      <View style={pm.sheet}>
+        <View style={pm.handle} />
+        <Text style={pm.title}>{title}</Text>
+        <FlatList
+          data={items}
+          keyExtractor={(i) => String(i.id)}
+          ListHeaderComponent={
+            allowAll ? (
+              <TouchableOpacity
+                style={[pm.item, !selected && pm.itemActive]}
+                onPress={() => {
+                  onSelect(undefined);
+                  onClose();
+                }}
+              >
+                <Text style={[pm.itemText, !selected && pm.itemTextActive]}>
+                  All
+                </Text>
+                {!selected && (
+                  <Feather name="check" size={16} color={colors.teal[600]} />
+                )}
+              </TouchableOpacity>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[pm.item, selected === item.id && pm.itemActive]}
+              onPress={() => {
+                onSelect(item.id as number);
+                onClose();
+              }}
+            >
+              <Text
+                style={[pm.itemText, selected === item.id && pm.itemTextActive]}
+              >
+                {item.name}
+              </Text>
+              {selected === item.id && (
+                <Feather name="check" size={16} color={colors.teal[600]} />
+              )}
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Filter Sheet ─────────────────────────────────────────────────────────────
+function FilterSheet({
+  visible,
+  filters,
+  draft,
+  setDraft,
+  onApply,
+  onClose,
+  categories,
+  accounts,
+  onOpenCat,
+  onOpenAcc,
+}: {
+  visible: boolean;
+  filters: Filters;
+  draft: Filters;
+  setDraft: React.Dispatch<React.SetStateAction<Filters>>;
+  onApply: (f: Filters) => void;
+  onClose: () => void;
+  categories: { id: number; name: string }[];
+  accounts: { id: number; name: string }[];
+  onOpenCat: () => void;
+  onOpenAcc: () => void;
+}) {
+  const [pickerTarget, setPickerTarget] = useState<"from" | "to" | null>(null);
+
+  React.useEffect(() => {
+    if (visible) setPickerTarget(null);
+  }, [visible]);
+
+  const set = (patch: Partial<Filters>) =>
+    setDraft((d) => ({ ...d, ...patch }));
+
+  const thisMon = currentMonth();
+
+  const handlePickerChange = (_: any, date?: Date) => {
+    if (Platform.OS === "android") setPickerTarget(null);
+    if (!date || !pickerTarget) return;
+    if (pickerTarget === "from") set({ fromDate: fmtDate(date) });
+    else set({ toDate: fmtDate(date) });
+  };
+
+  function pad(n: number) {
+    return String(n).padStart(2, "0");
+  }
+  function fmtDate(d: Date) {
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function displayFmt(iso: string) {
+    if (!iso) return "Select";
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  const fromDate = draft.fromDate ? new Date(draft.fromDate) : new Date();
+  const toDate = draft.toDate ? new Date(draft.toDate) : new Date();
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={pm.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      />
+      <View style={[pm.sheet, { paddingBottom: 32 }]}>
+        <View style={pm.handle} />
+        <View style={fs.headerRow}>
+          <Text style={pm.title}>Filters</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setDraft(DEFAULT_FILTERS);
+              setPickerTarget(null);
+            }}
+          >
+            <Text style={fs.resetText}>Reset all</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Text style={fs.sectionLabel}>DATE MODE</Text>
+          <View style={fs.segmented}>
+            {(["month", "range"] as const).map((m) => (
+              <TouchableOpacity
+                key={m}
+                style={[fs.segment, draft.mode === m && fs.segmentActive]}
+                onPress={() => {
+                  set({ mode: m });
+                  setPickerTarget(null);
+                }}
+              >
+                <Text
+                  style={[
+                    fs.segmentText,
+                    draft.mode === m && fs.segmentTextActive,
+                  ]}
+                >
+                  {m === "month" ? "Month" : "Date Range"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {draft.mode === "month" ? (
+            <>
+              <Text style={fs.sectionLabel}>MONTH</Text>
+              <View style={fs.monthRow}>
+                <TouchableOpacity
+                  onPress={() => set({ month: shiftMonth(draft.month, -1) })}
+                  style={fs.monthArrow}
+                >
+                  <Feather
+                    name="chevron-left"
+                    size={20}
+                    color={colors.teal[600]}
+                  />
+                </TouchableOpacity>
+                <Text style={fs.monthLabel}>{draft.month}</Text>
+                <TouchableOpacity
+                  onPress={() => set({ month: shiftMonth(draft.month, 1) })}
+                  style={fs.monthArrow}
+                  disabled={draft.month === thisMon}
+                >
+                  <Feather
+                    name="chevron-right"
+                    size={20}
+                    color={
+                      draft.month === thisMon
+                        ? colors.gray[300]
+                        : colors.teal[600]
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={fs.sectionLabel}>DATE RANGE</Text>
+              <View style={fs.customRow}>
+                <TouchableOpacity
+                  style={fs.datePicker}
+                  onPress={() =>
+                    setPickerTarget(pickerTarget === "from" ? null : "from")
+                  }
+                >
+                  <Feather name="calendar" size={14} color={colors.teal[600]} />
+                  <View>
+                    <Text style={fs.datePickerLabel}>From</Text>
+                    <Text style={fs.datePickerValue}>
+                      {displayFmt(draft.fromDate)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <Feather
+                  name="arrow-right"
+                  size={16}
+                  color={colors.gray[400]}
+                />
+                <TouchableOpacity
+                  style={fs.datePicker}
+                  onPress={() =>
+                    setPickerTarget(pickerTarget === "to" ? null : "to")
+                  }
+                >
+                  <Feather name="calendar" size={14} color={colors.teal[600]} />
+                  <View>
+                    <Text style={fs.datePickerLabel}>To</Text>
+                    <Text style={fs.datePickerValue}>
+                      {displayFmt(draft.toDate)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+              {pickerTarget && Platform.OS === "android" && (
+                <DateTimePicker
+                  mode="date"
+                  display="default"
+                  value={pickerTarget === "from" ? fromDate : toDate}
+                  onChange={handlePickerChange}
+                  maximumDate={pickerTarget === "from" ? toDate : new Date()}
+                  minimumDate={pickerTarget === "to" ? fromDate : undefined}
+                />
+              )}
+            </>
+          )}
+
+          <Text style={fs.sectionLabel}>TYPE</Text>
+          <View style={fs.chipRow}>
+            {TYPES.map((t) => (
+              <TouchableOpacity
+                key={t.value}
+                style={[fs.chip, draft.type === t.value && fs.chipActive]}
+                onPress={() => set({ type: t.value })}
+              >
+                <Text
+                  style={[
+                    fs.chipText,
+                    draft.type === t.value && fs.chipTextActive,
+                  ]}
+                >
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={fs.sectionLabel}>CATEGORY</Text>
+          <TouchableOpacity style={fs.selectBtn} onPress={onOpenCat}>
+            <Text
+              style={
+                draft.categoryId ? fs.selectBtnValue : fs.selectBtnPlaceholder
+              }
+            >
+              {draft.categoryId
+                ? (categories.find((c) => c.id === draft.categoryId)?.name ??
+                  "Select")
+                : "All Categories"}
+            </Text>
+            <Feather name="chevron-down" size={16} color={colors.gray[400]} />
+          </TouchableOpacity>
+
+          <Text style={fs.sectionLabel}>ACCOUNT</Text>
+          <TouchableOpacity style={fs.selectBtn} onPress={onOpenAcc}>
+            <Text
+              style={
+                draft.accountId ? fs.selectBtnValue : fs.selectBtnPlaceholder
+              }
+            >
+              {draft.accountId
+                ? (accounts.find((a) => a.id === draft.accountId)?.name ??
+                  "Select")
+                : "All Accounts"}
+            </Text>
+            <Feather name="chevron-down" size={16} color={colors.gray[400]} />
+          </TouchableOpacity>
+        </ScrollView>
+
+        <TouchableOpacity
+          style={fs.applyBtn}
+          onPress={() => {
+            onApply(draft);
+            onClose();
+            setPickerTarget(null);
+          }}
+        >
+          <Text style={fs.applyBtnText}>Apply Filters</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── TxnCard (unchanged) ──────────────────────────────────────────────────────
 function TxnCard({
   txn,
   onEdit,
@@ -159,26 +531,55 @@ function TxnCard({
   );
 }
 
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
 
-  const [month, setMonth] = useState(currentMonth());
-  const [type, setType] = useState("");
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [catPickerOpen, setCatPickerOpen] = useState(false);
+  const [accPickerOpen, setAccPickerOpen] = useState(false);
+  const [filterDraft, setFilterDraft] = useState<Filters>(DEFAULT_FILTERS);
+  const [draft, setDraft] = useState<Filters>(DEFAULT_FILTERS);
+
+  React.useEffect(() => {
+    if (filterOpen) setDraft(filters);
+  }, [filterOpen]);
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+  });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts-list"],
+    queryFn: getAccounts,
+  });
+
+  const queryParams = useMemo(() => {
+    const p: Record<string, unknown> = {
+      page,
+      limit: 20,
+      type: filters.type || undefined,
+      categoryId: filters.categoryId,
+      accountId: filters.accountId,
+      search: filters.search || undefined,
+    };
+    if (filters.mode === "month") {
+      p.month = filters.month;
+    } else {
+      p.fromDate = filters.fromDate || undefined;
+      p.toDate = filters.toDate || undefined;
+    }
+    return p;
+  }, [filters, page]);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
-    queryKey: ["transactions", { month, type, search, page }],
-    queryFn: () =>
-      getTransactions({
-        month,
-        type: type || undefined,
-        search: search || undefined,
-        page,
-        limit: 20,
-      }),
+    queryKey: ["transactions", queryParams],
+    queryFn: () => getTransactions(queryParams as any),
   });
 
   const deleteMut = useMutation({
@@ -206,66 +607,157 @@ export default function TransactionsScreen() {
 
   const txns = data?.data ?? [];
   const meta = data?.meta;
-  const thisMon = currentMonth();
+  const filterCount = activeFilterCount(filters);
+
+  // Displayed date label in hero
+  const dateLabel =
+    filters.mode === "month"
+      ? filters.month
+      : [filters.fromDate, filters.toDate].filter(Boolean).join(" → ") ||
+        "All dates";
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      {/* Header aligned with Account theme */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <View style={s.headerIconBtn}>
-            <Feather name="arrow-left" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Transactions</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/(app)/transactions/form")}
-          hitSlop={8}
-        >
-          <View style={s.addBtn}>
-            <Feather name="plus" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-      </View>
+      {/* Header */}
+      <PageHeader
+        title="Transactions"
+        variant="teal"
+        rightActions={[
+          {
+            icon: "sliders",
+            onPress: () => setFilterOpen(true),
+            badge: filterCount,
+          },
+          {
+            icon: "plus",
+            onPress: () => router.push("/(app)/transactions/form"),
+          },
+        ]}
+      />
+      {/* Month Bar (only in month mode) */}
+      {filters.mode === "month" && (
+        <View style={s.monthBar}>
+          <TouchableOpacity
+            onPress={() => {
+              setFilters((f) => ({ ...f, month: shiftMonth(f.month, -1) }));
+              setPage(1);
+            }}
+            hitSlop={8}
+            style={s.monthArrow}
+          >
+            <Feather name="chevron-left" size={20} color={colors.teal[600]} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setFilters((f) => ({ ...f, month: currentMonth() }))}
+            style={s.monthLabelWrap}
+          >
+            <Text style={s.monthLabel}>{filters.month}</Text>
+            {filters.month !== currentMonth() && (
+              <Text style={s.monthReset}>Tap to reset</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setFilters((f) => ({ ...f, month: shiftMonth(f.month, 1) }));
+              setPage(1);
+            }}
+            hitSlop={8}
+            style={s.monthArrow}
+            disabled={filters.month === currentMonth()}
+          >
+            <Feather
+              name="chevron-right"
+              size={20}
+              color={
+                filters.month === currentMonth()
+                  ? colors.gray[300]
+                  : colors.teal[600]
+              }
+            />
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* Month Selector */}
-      <View style={s.monthBar}>
-        <TouchableOpacity
-          onPress={() => {
-            setMonth((m) => shiftMonth(m, -1));
-            setPage(1);
-          }}
-          hitSlop={8}
-          style={s.monthArrow}
-        >
-          <Feather name="chevron-left" size={20} color={colors.teal[600]} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            setMonth(thisMon);
-            setPage(1);
-          }}
-          style={s.monthLabelWrap}
-        >
-          <Text style={s.monthLabel}>{month}</Text>
-          {month !== thisMon && <Text style={s.monthReset}>Tap to reset</Text>}
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            setMonth((m) => shiftMonth(m, 1));
-            setPage(1);
-          }}
-          hitSlop={8}
-          style={s.monthArrow}
-          disabled={month === thisMon}
-        >
-          <Feather
-            name="chevron-right"
-            size={20}
-            color={month === thisMon ? colors.gray[300] : colors.teal[600]}
-          />
-        </TouchableOpacity>
-      </View>
+      {/* Active filter chips */}
+      {filterCount > 0 && (
+        <View style={s.activeChipsWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.activeChipsContent}
+          >
+            {filters.type && (
+              <View style={s.activeChip}>
+                <Text style={s.activeChipText}>{filters.type}</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setFilters((f) => ({ ...f, type: "" }));
+                    setPage(1);
+                  }}
+                  hitSlop={4}
+                >
+                  <Feather name="x" size={12} color={colors.teal[600]} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.categoryId && (
+              <View style={s.activeChip}>
+                <Text style={s.activeChipText}>
+                  {categories.find((c) => c.id === filters.categoryId)?.name ??
+                    "Category"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setFilters((f) => ({ ...f, categoryId: undefined }));
+                    setPage(1);
+                  }}
+                  hitSlop={4}
+                >
+                  <Feather name="x" size={12} color={colors.teal[600]} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.accountId && (
+              <View style={s.activeChip}>
+                <Text style={s.activeChipText}>
+                  {accounts.find((a) => a.id === filters.accountId)?.name ??
+                    "Account"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setFilters((f) => ({ ...f, accountId: undefined }));
+                    setPage(1);
+                  }}
+                  hitSlop={4}
+                >
+                  <Feather name="x" size={12} color={colors.teal[600]} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.mode === "range" &&
+              (filters.fromDate || filters.toDate) && (
+                <View style={s.activeChip}>
+                  <Text style={s.activeChipText}>{dateLabel}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setFilters((f) => ({
+                        ...f,
+                        mode: "month",
+                        month: currentMonth(),
+                        fromDate: "",
+                        toDate: "",
+                      }));
+                      setPage(1);
+                    }}
+                    hitSlop={4}
+                  >
+                    <Feather name="x" size={12} color={colors.teal[600]} />
+                  </TouchableOpacity>
+                </View>
+              )}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Search */}
       <View style={s.searchWrap}>
@@ -279,41 +771,24 @@ export default function TransactionsScreen() {
           style={s.searchInput}
           placeholder="Search transactions…"
           placeholderTextColor={colors.gray[300]}
-          value={search}
+          value={filters.search}
           onChangeText={(v) => {
-            setSearch(v);
+            setFilters((f) => ({ ...f, search: v }));
             setPage(1);
           }}
           returnKeyType="search"
         />
-        {search ? (
-          <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
+        {filters.search ? (
+          <TouchableOpacity
+            onPress={() => {
+              setFilters((f) => ({ ...f, search: "" }));
+              setPage(1);
+            }}
+            hitSlop={8}
+          >
             <Feather name="x" size={15} color={colors.gray[400]} />
           </TouchableOpacity>
         ) : null}
-      </View>
-
-      {/* Type Filter */}
-      <View style={s.filterRow}>
-        {TYPES.map((t) => (
-          <TouchableOpacity
-            key={t.value}
-            style={[s.filterChip, type === t.value && s.filterChipActive]}
-            onPress={() => {
-              setType(t.value);
-              setPage(1);
-            }}
-          >
-            <Text
-              style={[
-                s.filterChipLabel,
-                type === t.value && s.filterChipLabelActive,
-              ]}
-            >
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
       </View>
 
       {isLoading ? (
@@ -345,7 +820,7 @@ export default function TransactionsScreen() {
             />
           }
         >
-          {/* Hero Banner matched to Net Worth Hero */}
+          {/* Hero */}
           <View style={s.hero}>
             <View style={s.heroHeader}>
               <View style={s.heroIconBadge}>
@@ -354,7 +829,7 @@ export default function TransactionsScreen() {
               <View style={s.heroTextBlock}>
                 <Text style={s.heroEyebrow}>MONTHLY OVERVIEW</Text>
                 <Text style={s.heroTitle}>Transactions</Text>
-                <Text style={s.heroSub}>{month}</Text>
+                <Text style={s.heroSub}>{dateLabel}</Text>
               </View>
             </View>
 
@@ -407,7 +882,7 @@ export default function TransactionsScreen() {
               <View style={s.emptyIconWrap}>
                 <Feather name="inbox" size={28} color={colors.teal[400]} />
               </View>
-              <Text style={s.emptyText}>No transactions for {month}</Text>
+              <Text style={s.emptyText}>No transactions found</Text>
             </View>
           ) : (
             txns.map((txn) => (
@@ -463,32 +938,235 @@ export default function TransactionsScreen() {
           )}
         </ScrollView>
       )}
+
+      <FilterSheet
+        visible={filterOpen}
+        filters={filters}
+        draft={draft}
+        setDraft={setDraft}
+        onApply={(f) => {
+          setFilters(f);
+          setPage(1);
+        }}
+        onClose={() => setFilterOpen(false)}
+        categories={categories}
+        accounts={accounts}
+        onOpenCat={() => setCatPickerOpen(true)}
+        onOpenAcc={() => setAccPickerOpen(true)}
+      />
+
+      <PickerModal
+        visible={catPickerOpen}
+        title="Select Category"
+        items={categories}
+        selected={draft.categoryId}
+        onSelect={(id) => setDraft((d) => ({ ...d, categoryId: id }))}
+        onClose={() => setCatPickerOpen(false)}
+        allowAll
+      />
+      <PickerModal
+        visible={accPickerOpen}
+        title="Select Account"
+        items={accounts}
+        selected={draft.accountId}
+        onSelect={(id) => setDraft((d) => ({ ...d, accountId: id }))}
+        onClose={() => setAccPickerOpen(false)}
+        allowAll
+      />
     </View>
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.gray[50] },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-
-  // Matched Header Styles
-  header: {
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const pm = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: "80%",
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.gray[200],
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.gray[900],
+    marginBottom: 4,
+  },
+  item: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: colors.teal[700],
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
-  headerIconBtn: {
-    width: 32,
-    height: 32,
+  itemActive: { backgroundColor: colors.teal[50] },
+  itemText: { fontSize: 15, color: colors.gray[700] },
+  itemTextActive: { color: colors.teal[600], fontWeight: "700" },
+});
+
+const fs = StyleSheet.create({
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  resetText: { fontSize: 13, color: colors.teal[600], fontWeight: "600" },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.gray[400],
+    letterSpacing: 1.2,
+    marginTop: 18,
+    marginBottom: 8,
+  },
+  segmented: {
+    flexDirection: "row",
+    backgroundColor: colors.gray[100],
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    padding: 3,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  segmentActive: {
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  segmentText: { fontSize: 13, fontWeight: "600", color: colors.gray[500] },
+  segmentTextActive: { color: colors.teal[600] },
+  monthRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.gray[50],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    paddingHorizontal: 8,
+  },
+  monthArrow: { padding: 10 },
+  monthLabel: { fontSize: 16, fontWeight: "800", color: colors.gray[900] },
+  rangeRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  rangeField: { flex: 1 },
+  rangeFieldLabel: {
+    fontSize: 11,
+    color: colors.gray[500],
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  rangeInput: {
+    backgroundColor: colors.gray[50],
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.gray[900],
+  },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.gray[200],
+    backgroundColor: "#fff",
+  },
+  chipActive: {
+    borderColor: colors.teal[500],
+    backgroundColor: colors.teal[50],
+  },
+  chipText: { fontSize: 13, fontWeight: "600", color: colors.gray[500] },
+  chipTextActive: { color: colors.teal[600] },
+  selectBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.gray[50],
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  selectBtnValue: { fontSize: 14, color: colors.gray[900], fontWeight: "600" },
+  selectBtnPlaceholder: { fontSize: 14, color: colors.gray[400] },
+  applyBtn: {
+    backgroundColor: colors.teal[600],
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  applyBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  customRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 4,
+  },
+  datePicker: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: colors.teal[100],
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  datePickerLabel: { fontSize: 10, fontWeight: "600", color: colors.gray[400] },
+  datePickerValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.gray[900],
+    marginTop: 1,
+  },
+});
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.gray[50] },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+  filterBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.red[500],
     alignItems: "center",
     justifyContent: "center",
   },
+  filterBadgeText: { fontSize: 9, fontWeight: "800", color: "#fff" },
   addBtn: {
     width: 32,
     height: 32,
@@ -497,7 +1175,6 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   monthBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -512,12 +1189,38 @@ const s = StyleSheet.create({
   monthLabelWrap: { alignItems: "center" },
   monthLabel: { fontSize: 16, fontWeight: "800", color: colors.gray[900] },
   monthReset: { fontSize: 10, color: colors.teal[400], marginTop: 1 },
-
+  activeChipsWrap: {
+    height: 48,
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
+  },
+  activeChipsContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  activeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.teal[50],
+    borderWidth: 1,
+    borderColor: colors.teal[200],
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  activeChipText: { fontSize: 12, fontWeight: "600", color: colors.teal[700] },
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: 16,
     marginTop: 10,
+    marginBottom: 4,
     backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
@@ -527,31 +1230,7 @@ const s = StyleSheet.create({
   },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, color: colors.gray[900] },
-
-  filterRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    backgroundColor: "#fff",
-  },
-  filterChipActive: {
-    borderColor: colors.teal[500],
-    backgroundColor: colors.teal[50],
-  },
-  filterChipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[500] },
-  filterChipLabelActive: { color: colors.teal[600] },
-
   list: { padding: 16, gap: 10 },
-
-  // Matched Hero Styles
   hero: {
     backgroundColor: colors.teal[700],
     borderRadius: 20,
@@ -609,8 +1288,6 @@ const s = StyleSheet.create({
     color: "rgba(204,251,241,0.8)",
   },
   heroTotal: { fontSize: 11, color: "rgba(204,251,241,0.6)" },
-
-  // Matched Account Card Actions for Transactions
   txnCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -634,7 +1311,6 @@ const s = StyleSheet.create({
   txnAmount: { fontSize: 14, fontWeight: "800" },
   typeBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   typeBadgeText: { fontSize: 10, fontWeight: "700" },
-
   txnExpanded: {
     borderTopWidth: 1,
     borderTopColor: colors.teal[50],
@@ -656,7 +1332,6 @@ const s = StyleSheet.create({
     borderColor: colors.teal[100],
   },
   actionLabel: { fontSize: 12, fontWeight: "600" },
-
   empty: { alignItems: "center", gap: 14, paddingTop: 60 },
   emptyIconWrap: {
     width: 64,
@@ -669,7 +1344,6 @@ const s = StyleSheet.create({
     borderColor: colors.teal[100],
   },
   emptyText: { fontSize: 15, color: colors.gray[400], fontWeight: "600" },
-
   pagination: {
     flexDirection: "row",
     alignItems: "center",
@@ -689,7 +1363,6 @@ const s = StyleSheet.create({
   },
   pageBtnDisabled: { opacity: 0.4 },
   pageLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
-
   errorText: { fontSize: 14, color: colors.red[500], textAlign: "center" },
   retryBtn: {
     backgroundColor: colors.teal[600],

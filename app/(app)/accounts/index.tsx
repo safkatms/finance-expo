@@ -26,6 +26,7 @@ import { colors } from "@/components/ui/theme";
 import type { Account } from "@/types/finance";
 import Feather from "@expo/vector-icons/Feather";
 import { AccountStatementModal } from "@/components/ui/AccountStatementModal";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const ACCOUNT_TYPE_ICONS: Record<
   string,
@@ -315,22 +316,13 @@ export default function AccountsScreen() {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <View style={s.headerIconBtn}>
-            <Feather name="arrow-left" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Accounts</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/(app)/accounts/form")}
-          hitSlop={8}
-        >
-          <View style={s.addBtn}>
-            <Feather name="plus" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-      </View>
+      <PageHeader
+        title="Accounts"
+        variant="teal"
+        rightActions={[
+          { icon: "plus", onPress: () => router.push("/(app)/accounts/form") },
+        ]}
+      />
 
       {isLoading ? (
         <View style={s.center}>
@@ -450,32 +442,6 @@ export default function AccountsScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.teal[700],
-  },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
-  headerIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
   list: { padding: 16, gap: 10 },
 

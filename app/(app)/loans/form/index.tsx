@@ -21,6 +21,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { colors } from "@/components/ui/theme";
 import { Alert } from "@/components/ui/Alert";
 import Feather from "@expo/vector-icons/Feather";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const schema = z.object({
   loanDate: z.string().min(1, "Date required"),
@@ -54,7 +55,7 @@ export default function LoanFormScreen() {
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -94,25 +95,16 @@ export default function LoanFormScreen() {
       style={[s.root, { paddingTop: insets.top }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <View style={s.headerIconBtn}>
-            <Feather name="x" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Record Loan</Text>
-        <TouchableOpacity
-          onPress={handleSubmit((d) => saveMut.mutate(d))}
-          hitSlop={8}
-          disabled={saveMut.isPending}
-        >
-          <View style={s.saveBtn}>
-            <Text style={s.saveBtnLabel}>
-              {saveMut.isPending ? "Saving…" : "Save"}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+      <PageHeader
+        title={"New loan"}
+        variant="teal"
+        // backIcon="x"
+        rightTextAction={{
+          label: saveMut.isPending ? "Saving…" : "Save",
+          onPress: handleSubmit((d) => saveMut.mutate(d)),
+          disabled: isSubmitting || saveMut.isPending,
+        }}
+      />
 
       <ScrollView
         contentContainerStyle={[
@@ -392,33 +384,6 @@ export default function LoanFormScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.teal[700],
-  },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
-  headerIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveBtn: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  saveBtnLabel: { fontSize: 14, fontWeight: "700", color: "#fff" },
 
   content: { padding: 16, gap: 20 },
 

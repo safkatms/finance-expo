@@ -26,6 +26,7 @@ import { colors } from "@/components/ui/theme";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import Feather from "@expo/vector-icons/Feather";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const ACCOUNT_TYPES = [
   { value: "bank", label: "Bank" },
@@ -184,28 +185,16 @@ export default function AccountFormScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <View style={s.headerIconBtn}>
-            <Feather name="x" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>
-          {isEdit ? "Edit account" : "New account"}
-        </Text>
-        <TouchableOpacity
-          onPress={handleSubmit((d) => saveMut.mutate(d))}
-          hitSlop={8}
-          disabled={isSubmitting || saveMut.isPending}
-        >
-          <View style={s.saveBtn}>
-            <Text style={s.saveBtnLabel}>
-              {saveMut.isPending ? "Saving…" : "Save"}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
+      <PageHeader
+        title={isEdit ? "Edit account" : "New account"}
+        variant="teal"
+        // backIcon="x"
+        rightTextAction={{
+          label: saveMut.isPending ? "Saving…" : "Save",
+          onPress: handleSubmit((d) => saveMut.mutate(d)),
+          disabled: isSubmitting || saveMut.isPending,
+        }}
+      />
       <ScrollView
         contentContainerStyle={[
           s.content,
@@ -467,33 +456,6 @@ export default function AccountFormScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.teal[700],
-  },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
-  headerIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveBtn: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  saveBtnLabel: { fontSize: 14, fontWeight: "700", color: "#fff" },
 
   content: { padding: 16, gap: 20 },
 

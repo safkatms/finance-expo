@@ -25,6 +25,7 @@ import { colors } from "@/components/ui/theme";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import Feather from "@expo/vector-icons/Feather";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const APPLICABLE_TYPES = [
   { label: "Any", value: "" },
@@ -62,7 +63,7 @@ export default function CategoryFormScreen() {
     control,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -118,28 +119,16 @@ export default function CategoryFormScreen() {
       style={[s.root, { paddingTop: insets.top }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <View style={s.headerIconBtn}>
-            <Feather name="x" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>
-          {isEdit ? "Edit category" : "New category"}
-        </Text>
-        <TouchableOpacity
-          onPress={handleSubmit((d) => saveMut.mutate(d))}
-          hitSlop={8}
-          disabled={saveMut.isPending}
-        >
-          <View style={s.saveBtn}>
-            <Text style={s.saveBtnLabel}>
-              {saveMut.isPending ? "Saving…" : "Save"}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+      <PageHeader
+        title={isEdit ? "Edit category" : "New category"}
+        variant="teal"
+        // backIcon="x"
+        rightTextAction={{
+          label: saveMut.isPending ? "Saving…" : "Save",
+          onPress: handleSubmit((d) => saveMut.mutate(d)),
+          disabled: isSubmitting || saveMut.isPending,
+        }}
+      />
 
       <ScrollView
         contentContainerStyle={[
@@ -301,34 +290,6 @@ export default function CategoryFormScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.teal[700],
-  },
-  headerIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
-  saveBtn: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  saveBtnLabel: { fontSize: 14, fontWeight: "700", color: "#fff" },
-
   content: { padding: 16, gap: 20 },
   field: { gap: 6 },
   label: {
@@ -339,7 +300,6 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
     marginLeft: 2,
   },
-
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -382,7 +342,6 @@ const s = StyleSheet.create({
     borderColor: colors.gray[200],
   },
   fieldError: { fontSize: 12, color: colors.red[500], marginLeft: 4 },
-
   chipRow: { flexDirection: "row", gap: 8 },
   chip: {
     paddingHorizontal: 18,

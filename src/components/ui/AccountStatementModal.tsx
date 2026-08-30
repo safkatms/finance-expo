@@ -4,6 +4,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
   ActivityIndicator,
   Alert,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import { colors } from "@/components/ui/theme";
 import type { Account } from "@/types/finance";
@@ -70,8 +72,26 @@ function fmtAmount(n: number) {
   });
 }
 
+function SummaryCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <View style={s.summaryCard}>
+      <Text style={s.summaryLabel}>{label}</Text>
+      <Text style={[s.summaryValue, { color }]}>৳{value}</Text>
+    </View>
+  );
+}
+
 export function AccountStatementModal({ account, visible, onClose }: Props) {
-  const [selectedRange, setSelectedRange] = useState(1);
+  const insets = useSafeAreaInsets();
+  const [selectedRange, setSelectedRange] = useState(0);
   const [customFrom, setCustomFrom] = useState(
     fmt(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
   );
@@ -123,27 +143,31 @@ export function AccountStatementModal({ account, visible, onClose }: Props) {
   return (
     <Modal
       visible={visible}
+      transparent
       animationType="slide"
-      presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={s.root}>
-        {/* Header */}
-        <View style={s.header}>
+      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose} />
+      <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+        {/* Handle */}
+        <View style={s.handle} />
+
+        {/* Sheet Header */}
+        <View style={s.sheetHeader}>
           <View>
-            <Text style={s.headerTitle}>Account Statement</Text>
-            <Text style={s.headerSub}>{account.name}</Text>
+            <Text style={s.sheetTitle}>Account Statement</Text>
+            <Text style={s.sheetSub}>{account.name}</Text>
           </View>
           <TouchableOpacity onPress={onClose} hitSlop={8}>
             <View style={s.closeBtn}>
-              <Feather name="x" size={18} color={colors.teal[700]} />
+              <Feather name="x" size={16} color={colors.teal[700]} />
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* Range picker */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Date range</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Range chips */}
+          <Text style={s.sectionLabel}>DATE RANGE</Text>
           <View style={s.chipRow}>
             {QUICK_RANGES.map((r, i) => (
               <TouchableOpacity
@@ -174,9 +198,7 @@ export function AccountStatementModal({ account, visible, onClose }: Props) {
                   </Text>
                 </View>
               </TouchableOpacity>
-
               <Feather name="arrow-right" size={14} color={colors.gray[400]} />
-
               <TouchableOpacity
                 style={s.datePicker}
                 onPress={() => setPickerTarget("to")}
@@ -189,22 +211,11 @@ export function AccountStatementModal({ account, visible, onClose }: Props) {
               </TouchableOpacity>
             </View>
           )}
-        </View>
 
-        {/* Inline iOS picker */}
-        {isCustom && pickerTarget && Platform.OS === "ios" && (
-          <View style={s.iosPickerWrap}>
-            <View style={s.iosPickerHeader}>
-              <Text style={s.iosPickerTitle}>
-                Select {pickerTarget === "from" ? "start" : "end"} date
-              </Text>
-              <TouchableOpacity onPress={() => setPickerTarget(null)}>
-                <Text style={s.iosPickerDone}>Done</Text>
-              </TouchableOpacity>
-            </View>
+          {isCustom && pickerTarget && Platform.OS === "android" && (
             <DateTimePicker
               mode="date"
-              display="spinner"
+              display="default"
               value={new Date(pickerTarget === "from" ? customFrom : customTo)}
               onChange={handlePickerChange}
               maximumDate={
@@ -213,30 +224,11 @@ export function AccountStatementModal({ account, visible, onClose }: Props) {
               minimumDate={
                 pickerTarget === "to" ? new Date(customFrom) : undefined
               }
-              themeVariant="light"
             />
-          </View>
-        )}
+          )}
 
-        {/* Android picker */}
-        {isCustom && pickerTarget && Platform.OS === "android" && (
-          <DateTimePicker
-            mode="date"
-            display="default"
-            value={new Date(pickerTarget === "from" ? customFrom : customTo)}
-            onChange={handlePickerChange}
-            maximumDate={
-              pickerTarget === "from" ? new Date(customTo) : new Date()
-            }
-            minimumDate={
-              pickerTarget === "to" ? new Date(customFrom) : undefined
-            }
-          />
-        )}
-
-        {/* Summary */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Summary</Text>
+          {/* Summary */}
+          <Text style={s.sectionLabel}>SUMMARY</Text>
           {isCustom && !customValid ? (
             <View style={s.loadingBox}>
               <Text style={s.hintText}>Select a valid date range above</Text>
@@ -250,114 +242,108 @@ export function AccountStatementModal({ account, visible, onClose }: Props) {
               <Text style={s.errorText}>Failed to load statement</Text>
             </View>
           ) : data ? (
-            <View style={s.summaryGrid}>
-              <SummaryCard
-                label="Opening"
-                value={fmtAmount(data.openingBalance)}
-                color={colors.gray[700]}
-              />
-              <SummaryCard
-                label="Total Credit"
-                value={fmtAmount(data.totalCredit)}
-                color="#16a34a"
-              />
-              <SummaryCard
-                label="Total Debit"
-                value={fmtAmount(data.totalDebit)}
-                color="#dc2626"
-              />
-              <SummaryCard
-                label="Closing"
-                value={fmtAmount(data.closingBalance)}
-                color={colors.teal[700]}
-              />
-            </View>
+            <>
+              <View style={s.summaryGrid}>
+                <SummaryCard
+                  label="Opening"
+                  value={fmtAmount(data.openingBalance)}
+                  color={colors.gray[700]}
+                />
+                <SummaryCard
+                  label="Total Credit"
+                  value={fmtAmount(data.totalCredit)}
+                  color="#16a34a"
+                />
+                <SummaryCard
+                  label="Total Debit"
+                  value={fmtAmount(data.totalDebit)}
+                  color="#dc2626"
+                />
+                <SummaryCard
+                  label="Closing"
+                  value={fmtAmount(data.closingBalance)}
+                  color={colors.teal[700]}
+                />
+              </View>
+              <View style={s.rowCountBox}>
+                <Feather name="list" size={14} color={colors.gray[500]} />
+                <Text style={s.rowCountText}>
+                  {data.rows.length} transaction
+                  {data.rows.length !== 1 ? "s" : ""}
+                </Text>
+              </View>
+            </>
           ) : null}
-        </View>
+        </ScrollView>
 
-        {data && (
-          <View style={s.rowCountBox}>
-            <Feather name="list" size={14} color={colors.gray[500]} />
-            <Text style={s.rowCountText}>
-              {data.rows.length} transaction{data.rows.length !== 1 ? "s" : ""}
-            </Text>
-          </View>
-        )}
-
-        {/* Footer */}
-        <View style={s.footer}>
-          <TouchableOpacity
-            style={[
-              s.pdfBtn,
-              (isLoading || openingPdf || (isCustom && !customValid)) &&
-                s.pdfBtnDisabled,
-            ]}
-            onPress={handleDownloadPdf}
-            disabled={isLoading || openingPdf || (isCustom && !customValid)}
-          >
-            {openingPdf ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Feather name="download" size={16} color="#fff" />
-            )}
-            <Text style={s.pdfBtnText}>
-              {openingPdf ? "Opening…" : "Download PDF"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Download button */}
+        <TouchableOpacity
+          style={[
+            s.pdfBtn,
+            (isLoading || openingPdf || (isCustom && !customValid)) &&
+              s.pdfBtnDisabled,
+          ]}
+          onPress={handleDownloadPdf}
+          disabled={isLoading || openingPdf || (isCustom && !customValid)}
+        >
+          {openingPdf ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Feather name="download" size={16} color="#fff" />
+          )}
+          <Text style={s.pdfBtnText}>
+            {openingPdf ? "Opening…" : "Download PDF"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </Modal>
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <View style={s.summaryCard}>
-      <Text style={s.summaryLabel}>{label}</Text>
-      <Text style={[s.summaryValue, { color }]}>৳{value}</Text>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.gray[50] },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.teal[50],
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: colors.gray[900] },
-  headerSub: { fontSize: 13, color: colors.gray[500], marginTop: 2 },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: "85%",
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.gray[200],
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  sheetTitle: { fontSize: 17, fontWeight: "800", color: colors.gray[900] },
+  sheetSub: { fontSize: 13, color: colors.gray[500], marginTop: 2 },
   closeBtn: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     borderRadius: 10,
     backgroundColor: colors.teal[50],
     alignItems: "center",
     justifyContent: "center",
   },
 
-  section: { paddingHorizontal: 20, paddingTop: 20, gap: 10 },
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.gray[500],
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.gray[400],
+    letterSpacing: 1.2,
+    marginTop: 18,
+    marginBottom: 8,
   },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -380,14 +366,14 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginTop: 4,
+    marginTop: 10,
   },
   datePicker: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#fff",
+    backgroundColor: colors.gray[50],
     borderWidth: 1.5,
     borderColor: colors.teal[100],
     borderRadius: 12,
@@ -402,32 +388,14 @@ const s = StyleSheet.create({
     marginTop: 1,
   },
 
-  iosPickerWrap: {
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
-    marginTop: 8,
-  },
-  iosPickerHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
-  },
-  iosPickerTitle: { fontSize: 14, fontWeight: "600", color: colors.gray[700] },
-  iosPickerDone: { fontSize: 14, fontWeight: "700", color: colors.teal[600] },
-
   loadingBox: {
     height: 90,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: colors.gray[50],
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.teal[50],
+    borderWidth: 1,
+    borderColor: colors.gray[100],
   },
   hintText: { fontSize: 13, color: colors.gray[400] },
   errorText: { fontSize: 13, color: colors.red[500] },
@@ -436,10 +404,10 @@ const s = StyleSheet.create({
   summaryCard: {
     flex: 1,
     minWidth: "45%",
-    backgroundColor: "#fff",
+    backgroundColor: colors.gray[50],
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.teal[50],
+    borderWidth: 1,
+    borderColor: colors.gray[100],
     padding: 14,
     gap: 4,
   },
@@ -450,21 +418,11 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
   rowCountText: { fontSize: 13, color: colors.gray[500] },
 
-  footer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
-  },
   pdfBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -473,6 +431,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.teal[600],
     borderRadius: 14,
     paddingVertical: 14,
+    marginTop: 16,
   },
   pdfBtnDisabled: { opacity: 0.6 },
   pdfBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },

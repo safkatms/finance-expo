@@ -24,6 +24,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { colors } from "@/components/ui/theme";
 import type { Category } from "@/types/finance";
 import Feather from "@expo/vector-icons/Feather";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const TYPE_COLORS: Record<string, string> = {
   Income: colors.green[500],
@@ -207,23 +208,16 @@ export default function CategoriesScreen() {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <View style={s.headerIconBtn}>
-            <Feather name="arrow-left" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Categories</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/(app)/categories/form")}
-          hitSlop={8}
-        >
-          <View style={s.addBtn}>
-            <Feather name="plus" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-      </View>
-
+      <PageHeader
+        title="Categories"
+        variant="teal"
+        rightActions={[
+          {
+            icon: "plus",
+            onPress: () => router.push("/(app)/categories/form"),
+          },
+        ]}
+      />
       {/* Pinned banner */}
       {pinnedList.length > 0 && (
         <View style={s.pinnedBanner}>
@@ -324,32 +318,6 @@ export default function CategoriesScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.teal[700],
-  },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#fff" },
-  headerIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
   pinnedBanner: {
     flexDirection: "row",
