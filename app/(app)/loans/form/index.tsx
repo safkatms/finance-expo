@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { createLoan } from "@/lib/api/loans.api";
 import { getAccountsWithNetWorth } from "@/lib/api/accounts.api";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -37,14 +38,28 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-function todayISO() {
-  return new Date().toISOString().split("T")[0];
+function pad(n: number) {
+  return String(n).padStart(2, "0");
 }
+function fmt(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function displayFmt(iso: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+function todayISO() {
+  return fmt(new Date());
+}
+
+type ActiveField = "loanDate" | "dueDate" | null;
 
 export default function LoanFormScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
+  const [activeField, setActiveField] = useState<ActiveField>(null);
 
   const { data: accountsData } = useQuery({
     queryKey: ["accounts"],
@@ -55,6 +70,8 @@ export default function LoanFormScreen() {
   const {
     control,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -69,6 +86,9 @@ export default function LoanFormScreen() {
       notes: "",
     },
   });
+
+  const loanDate = watch("loanDate");
+  const dueDate = watch("dueDate");
 
   const saveMut = useMutation({
     mutationFn: (data: FormData) =>
@@ -90,6 +110,15 @@ export default function LoanFormScreen() {
     },
   });
 
+  const closePicker = () => setActiveField(null);
+
+  const handleDateChange = (date?: Date) => {
+    if (Platform.OS === "android") setActiveField(null);
+    if (date && activeField) {
+      setValue(activeField, fmt(date), { shouldValidate: true });
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={[s.root, { paddingTop: insets.top }]}
@@ -98,7 +127,6 @@ export default function LoanFormScreen() {
       <PageHeader
         title={"New loan"}
         variant="teal"
-        // backIcon="x"
         rightTextAction={{
           label: saveMut.isPending ? "Saving…" : "Save",
           onPress: handleSubmit((d) => saveMut.mutate(d)),
@@ -242,53 +270,107 @@ export default function LoanFormScreen() {
         {/* Loan Date */}
         <View style={s.field}>
           <Text style={s.label}>Loan Date *</Text>
-          <Controller
-            control={control}
-            name="loanDate"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <View style={[s.inputRow, errors.loanDate && s.inputRowError]}>
-                <View style={s.inputPrefix}>
-                  <Feather name="calendar" size={15} color={colors.teal[500]} />
-                </View>
-                <TextInput
-                  style={s.textInput}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.gray[400]}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                />
-              </View>
-            )}
-          />
+          <TouchableOpacity
+            style={[s.inputRow, errors.loanDate && s.inputRowError]}
+            onPress={() => setActiveField("loanDate")}
+            activeOpacity={0.7}
+          >
+            <View style={s.inputPrefix}>
+              <Feather name="calendar" size={15} color={colors.teal[500]} />
+            </View>
+            <Text
+              style={[
+                s.textInput,
+                s.dateText,
+                !loanDate && { color: colors.gray[400] },
+              ]}
+            >
+              {loanDate ? displayFmt(loanDate) : "Select date"}
+            </Text>
+          </TouchableOpacity>
           {errors.loanDate && (
             <Text style={s.fieldError}>{errors.loanDate.message}</Text>
           )}
+
+          {activeField === "loanDate" && Platform.OS === "android" && (
+            <DateTimePicker
+              mode="date"
+              display="default"
+              value={loanDate ? new Date(loanDate) : new Date()}
+              maximumDate={new Date()}
+              onChange={(_, date) => handleDateChange(date)}
+            />
+          )}
         </View>
+
+        {activeField === "loanDate" && Platform.OS === "ios" && (
+          <View style={s.iosPickerWrap}>
+            <View style={s.iosPickerHeader}>
+              <Text style={s.iosPickerTitle}>Select date</Text>
+              <TouchableOpacity onPress={closePicker}>
+                <Text style={s.iosPickerDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              mode="date"
+              display="spinner"
+              value={loanDate ? new Date(loanDate) : new Date()}
+              maximumDate={new Date()}
+              onChange={(_, date) => handleDateChange(date)}
+              themeVariant="light"
+            />
+          </View>
+        )}
 
         {/* Due Date */}
         <View style={s.field}>
           <Text style={s.label}>Due Date</Text>
-          <Controller
-            control={control}
-            name="dueDate"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <View style={s.inputRow}>
-                <View style={s.inputPrefix}>
-                  <Feather name="clock" size={15} color={colors.teal[500]} />
-                </View>
-                <TextInput
-                  style={s.textInput}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.gray[400]}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                />
-              </View>
-            )}
-          />
+          <TouchableOpacity
+            style={s.inputRow}
+            onPress={() => setActiveField("dueDate")}
+            activeOpacity={0.7}
+          >
+            <View style={s.inputPrefix}>
+              <Feather name="clock" size={15} color={colors.teal[500]} />
+            </View>
+            <Text
+              style={[
+                s.textInput,
+                s.dateText,
+                !dueDate && { color: colors.gray[400] },
+              ]}
+            >
+              {dueDate ? displayFmt(dueDate) : "Select date"}
+            </Text>
+          </TouchableOpacity>
+
+          {activeField === "dueDate" && Platform.OS === "android" && (
+            <DateTimePicker
+              mode="date"
+              display="default"
+              value={dueDate ? new Date(dueDate) : new Date()}
+              onChange={(_, date) => handleDateChange(date)}
+            />
+          )}
         </View>
+
+        {activeField === "dueDate" && Platform.OS === "ios" && (
+          <View style={s.iosPickerWrap}>
+            <View style={s.iosPickerHeader}>
+              <Text style={s.iosPickerTitle}>Select due date</Text>
+              <TouchableOpacity onPress={closePicker}>
+                <Text style={s.iosPickerDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              mode="date"
+              display="spinner"
+              value={dueDate ? new Date(dueDate) : new Date()}
+              onChange={(_, date) => handleDateChange(date)}
+              themeVariant="light"
+            />
+          </View>
+        )}
 
         {/* Account */}
         <View style={s.field}>
@@ -428,6 +510,7 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: colors.gray[900],
   },
+  dateText: { lineHeight: 50 },
   textareaRow: { alignItems: "flex-start" },
   textarea: { height: 88, paddingTop: 14, textAlignVertical: "top" },
   currencySymbol: { fontSize: 16, fontWeight: "700", color: colors.teal[500] },
@@ -463,4 +546,23 @@ const s = StyleSheet.create({
   },
   chipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
   chipLabelSelected: { color: colors.teal[700] },
+
+  iosPickerWrap: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.teal[50],
+    overflow: "hidden",
+  },
+  iosPickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
+  },
+  iosPickerTitle: { fontSize: 14, fontWeight: "600", color: colors.gray[700] },
+  iosPickerDone: { fontSize: 14, fontWeight: "700", color: colors.teal[600] },
 });

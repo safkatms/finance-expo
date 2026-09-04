@@ -27,7 +27,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { colors } from "@/components/ui/theme";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
-import type { Account, Category } from "@/types/finance";
+import type { Account, Category, TxnType } from "@/types/finance";
 import Feather from "@expo/vector-icons/Feather";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -99,13 +99,38 @@ function AccountPicker({
   value,
   onChange,
   error,
+  amount,
+  txnType,
+  direction,
 }: {
   label: string;
   accounts: Account[];
   value?: number;
   onChange: (id: number) => void;
   error?: string;
+  amount?: string;
+  txnType: TxnType;
+  direction: "from" | "to";
 }) {
+  const selected = accounts.find((a) => a.id === value);
+  const parsedAmount = parseFloat(amount || "0") || 0;
+
+  let projectedBalance: number | null = null;
+  if (selected) {
+    const isDebit =
+      (direction === "from" &&
+        (txnType === "Expense" || txnType === "Transfer")) ||
+      false;
+    const isCredit =
+      (direction === "to" &&
+        (txnType === "Income" || txnType === "Transfer")) ||
+      false;
+
+    if (isDebit) projectedBalance = selected.currentBalance - parsedAmount;
+    else if (isCredit)
+      projectedBalance = selected.currentBalance + parsedAmount;
+  }
+
   return (
     <View style={s.field}>
       <Text style={s.label}>{label}</Text>
@@ -127,6 +152,28 @@ function AccountPicker({
         </View>
       </ScrollView>
       {error && <Text style={s.fieldError}>{error}</Text>}
+
+      {selected && (
+        <View style={s.balanceInfoRow}>
+          <Text style={s.balanceInfoText}>
+            Current: ৳{selected.currentBalance.toLocaleString()}
+          </Text>
+          {projectedBalance !== null && parsedAmount > 0 && (
+            <Text
+              style={[
+                s.balanceInfoText,
+                s.balanceInfoAfter,
+                {
+                  color:
+                    projectedBalance < 0 ? colors.red[500] : colors.teal[600],
+                },
+              ]}
+            >
+              After: ৳{projectedBalance.toLocaleString()}
+            </Text>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -459,6 +506,9 @@ export default function TransactionFormScreen() {
                 value={value}
                 onChange={onChange}
                 error={errors.fromAccountId?.message}
+                amount={isEdit ? undefined : watch("amount")}
+                txnType={txnType}
+                direction="from"
               />
             )}
           />
@@ -476,6 +526,9 @@ export default function TransactionFormScreen() {
                 value={value}
                 onChange={onChange}
                 error={errors.toAccountId?.message}
+                amount={isEdit ? undefined : watch("amount")}
+                txnType={txnType}
+                direction="to"
               />
             )}
           />
@@ -680,4 +733,18 @@ const s = StyleSheet.create({
   },
   iosPickerTitle: { fontSize: 14, fontWeight: "600", color: colors.gray[700] },
   iosPickerDone: { fontSize: 14, fontWeight: "700", color: colors.teal[600] },
+  balanceInfoRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 2,
+    marginLeft: 2,
+  },
+  balanceInfoText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.gray[500],
+  },
+  balanceInfoAfter: {
+    fontWeight: "700",
+  },
 });

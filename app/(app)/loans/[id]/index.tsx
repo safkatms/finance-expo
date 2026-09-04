@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { getLoan, recordLoanPayment, updateLoan } from "@/lib/api/loans.api";
 import { getAccountsWithNetWorth } from "@/lib/api/accounts.api";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -30,8 +31,19 @@ const STATUS_COLORS: Record<string, string> = {
   WrittenOff: colors.gray[400],
 };
 
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+function fmtDate(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function displayFmt(iso: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
 function todayISO() {
-  return new Date().toISOString().split("T")[0];
+  return fmtDate(new Date());
 }
 
 export default function LoanDetailScreen() {
@@ -46,6 +58,7 @@ export default function LoanDetailScreen() {
   const [payNote, setPayNote] = useState("");
   const [payAccountId, setPayAccountId] = useState<number | null>(null);
   const [payError, setPayError] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const {
     data: loan,
@@ -164,7 +177,7 @@ export default function LoanDetailScreen() {
             </View>
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 32 }} /> // Spacer for alignment
+          <View style={{ width: 32 }} />
         )}
       </View>
 
@@ -200,7 +213,6 @@ export default function LoanDetailScreen() {
 
           <Text style={s.heroAmount}>{fmt(loan.amount)}</Text>
 
-          {/* Progress */}
           <View style={s.progressWrap}>
             <View style={s.progressBg}>
               <View
@@ -263,7 +275,10 @@ export default function LoanDetailScreen() {
           <View style={s.section}>
             <TouchableOpacity
               style={s.payBtn}
-              onPress={() => setShowPayment((v) => !v)}
+              onPress={() => {
+                setShowPayment((v) => !v);
+                setShowDatePicker(false);
+              }}
             >
               <Feather
                 name={showPayment ? "x-circle" : "plus-circle"}
@@ -298,7 +313,11 @@ export default function LoanDetailScreen() {
 
                 <View style={s.field}>
                   <Text style={s.label}>Payment Date *</Text>
-                  <View style={s.inputRow}>
+                  <TouchableOpacity
+                    style={s.inputRow}
+                    onPress={() => setShowDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
                     <View style={s.inputPrefix}>
                       <Feather
                         name="calendar"
@@ -306,15 +325,47 @@ export default function LoanDetailScreen() {
                         color={colors.teal[500]}
                       />
                     </View>
-                    <TextInput
-                      style={s.textInput}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor={colors.gray[300]}
-                      value={payDate}
-                      onChangeText={setPayDate}
+                    <Text style={[s.textInput, s.dateText]}>
+                      {displayFmt(payDate)}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showDatePicker && Platform.OS === "android" && (
+                    <DateTimePicker
+                      mode="date"
+                      display="default"
+                      value={new Date(payDate)}
+                      maximumDate={new Date()}
+                      onChange={(_, date) => {
+                        setShowDatePicker(false);
+                        if (date) setPayDate(fmtDate(date));
+                      }}
+                    />
+                  )}
+                </View>
+
+                {showDatePicker && Platform.OS === "ios" && (
+                  <View style={s.iosPickerWrap}>
+                    <View style={s.iosPickerHeader}>
+                      <Text style={s.iosPickerTitle}>Select date</Text>
+                      <TouchableOpacity
+                        onPress={() => setShowDatePicker(false)}
+                      >
+                        <Text style={s.iosPickerDone}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      mode="date"
+                      display="spinner"
+                      value={new Date(payDate)}
+                      maximumDate={new Date()}
+                      onChange={(_, date) => {
+                        if (date) setPayDate(fmtDate(date));
+                      }}
+                      themeVariant="light"
                     />
                   </View>
-                </View>
+                )}
 
                 <View style={s.field}>
                   <Text style={s.label}>Account *</Text>
@@ -379,7 +430,6 @@ export default function LoanDetailScreen() {
           </View>
         )}
 
-        {/* Payment History */}
         {loan.payments && loan.payments.length > 0 && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>Payment History</Text>
@@ -565,6 +615,7 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: colors.gray[900],
   },
+  dateText: { lineHeight: 50 },
   textareaRow: { alignItems: "flex-start" },
   textarea: { height: 88, paddingTop: 14, textAlignVertical: "top" },
   currencySymbol: { fontSize: 16, fontWeight: "700", color: colors.teal[500] },
@@ -633,4 +684,23 @@ const s = StyleSheet.create({
     paddingVertical: 10,
   },
   retryLabel: { color: "#fff", fontWeight: "700" },
+
+  iosPickerWrap: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.teal[50],
+    overflow: "hidden",
+  },
+  iosPickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
+  },
+  iosPickerTitle: { fontSize: 14, fontWeight: "600", color: colors.gray[700] },
+  iosPickerDone: { fontSize: 14, fontWeight: "700", color: colors.teal[600] },
 });

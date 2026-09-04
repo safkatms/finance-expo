@@ -6,6 +6,11 @@ import { useAuthStore } from "@/store/auth.store";
 import { getAccessToken } from "@/lib/axios";
 import { getMe } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
+import { getDashboard } from "@/lib/api/dashboard.api";
+
+import * as SplashScreen from "expo-splash-screen";
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const { setAuthenticated, setLoading, setUser } = useAuthStore();
@@ -18,6 +23,10 @@ export default function RootLayout() {
           const user = await getMe();
           setUser(user);
           setAuthenticated(true);
+          queryClient.prefetchQuery({
+            queryKey: ["dashboard"],
+            queryFn: () => getDashboard(),
+          });
         } catch {
           setAuthenticated(false);
         }
@@ -25,6 +34,7 @@ export default function RootLayout() {
         setAuthenticated(false);
       }
       setLoading(false);
+      await SplashScreen.hideAsync();
     })();
   }, []);
 
