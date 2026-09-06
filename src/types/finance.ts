@@ -255,3 +255,29 @@ export interface AccountStatement {
     closingBalance: number;
     rows: AccountStatementRow[];
 }
+
+// Budget
+export interface BudgetItem {
+    id: number;
+    month: string;
+    categoryId?: number;
+    categoryName?: string;
+    categoryIcon?: string;
+    categoryColor?: string;
+    budgeted: number;
+    spent: number;
+    remaining: number;
+    percentUsed: number;
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface MonthBudgetSummary {
+    month: string;
+    totalBudgeted: number;
+    totalSpent: number;
+    totalRemaining: number;
+    percentUsed: number;
+    items: BudgetItem[];
+}
