@@ -245,10 +245,13 @@ export default function TransactionFormScreen() {
   const { data: accountsData } = useQuery({
     queryKey: ["accounts-list"],
     queryFn: getAccounts,
+    refetchOnMount: "always",
   });
+
   const { data: categoriesData } = useQuery({
     queryKey: ["categories"],
     queryFn: getCategories,
+    refetchOnMount: "always",
   });
 
   const accounts = Array.isArray(accountsData)
@@ -281,6 +284,7 @@ export default function TransactionFormScreen() {
   const txnType = watch("type");
   const txnDate = watch("txnDate");
 
+  // Load existing transaction
   useEffect(() => {
     if (existing) {
       reset({
@@ -296,6 +300,25 @@ export default function TransactionFormScreen() {
       });
     }
   }, [existing, reset]);
+
+  // Select default account for a new transaction
+  useEffect(() => {
+    if (!accounts.length || isEdit) return;
+
+    const defaultAccount = accounts.find(
+      (account: Account) => account.isDefault,
+    );
+
+    if (!defaultAccount) return;
+
+    if (txnType === "Expense" || txnType === "Transfer") {
+      setValue("fromAccountId", defaultAccount.id);
+    }
+
+    if (txnType === "Income") {
+      setValue("toAccountId", defaultAccount.id);
+    }
+  }, [accounts, txnType, isEdit, setValue]);
 
   const saveMut = useMutation({
     mutationFn: (data: FormData) => {

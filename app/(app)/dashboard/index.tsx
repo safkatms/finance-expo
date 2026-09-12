@@ -753,7 +753,13 @@ export default function DashboardScreen() {
           <View style={styles.card}>
             {visibleCategories.map((item) => (
               <CategoryBar
-                key={item.categoryId ?? "uncategorized"}
+                key={
+                  item.categoryId !== null
+                    ? `category-${item.categoryId}`
+                    : item.categoryName === "Loan"
+                      ? "loan"
+                      : "uncategorized"
+                }
                 item={item}
                 maxTotal={maxCategoryTotal}
               />

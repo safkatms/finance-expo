@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { colors } from "@/components/ui/theme";
 import { Alert } from "@/components/ui/Alert";
 import Feather from "@expo/vector-icons/Feather";
 import { PageHeader } from "@/components/ui/PageHeader";
+import * as Contacts from "expo-contacts";
 
 const schema = z.object({
   loanDate: z.string().min(1, "Date required"),
@@ -65,6 +66,7 @@ export default function LoanFormScreen() {
     queryKey: ["accounts"],
     queryFn: getAccountsWithNetWorth,
   });
+
   const accounts = accountsData?.accounts ?? [];
 
   const {
@@ -86,7 +88,27 @@ export default function LoanFormScreen() {
       notes: "",
     },
   });
+  // after accounts const
+  const watchedAccountId = watch("accountId");
+  const watchedAmount = watch("amount");
+  const selectedAccount = accounts.find((a) => a.id === watchedAccountId);
+  const parsedAmount = parseFloat(watchedAmount || "0") || 0;
+  const direction = watch("direction");
 
+  const projectedBalance = selectedAccount
+    ? direction === "Gave"
+      ? selectedAccount.currentBalance - parsedAmount
+      : selectedAccount.currentBalance + parsedAmount
+    : null;
+  // After the accounts query
+  useEffect(() => {
+    if (!accounts.length) return; // add isEdit if you add edit support later
+
+    const defaultAccount = accounts.find((acc) => acc.isDefault);
+    if (!defaultAccount) return;
+
+    setValue("accountId", defaultAccount.id);
+  }, [accounts, setValue]);
   const loanDate = watch("loanDate");
   const dueDate = watch("dueDate");
 
@@ -116,6 +138,22 @@ export default function LoanFormScreen() {
     if (Platform.OS === "android") setActiveField(null);
     if (date && activeField) {
       setValue(activeField, fmt(date), { shouldValidate: true });
+    }
+  };
+
+  const pickContact = async () => {
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== "granted") return;
+
+      const contact = await Contacts.presentContactPickerAsync();
+      if (!contact) return;
+
+      const phone = contact.phoneNumbers?.[0]?.number ?? "";
+      setValue("personName", contact.name ?? "", { shouldValidate: true });
+      setValue("personPhone", phone, { shouldValidate: true });
+    } catch (error) {
+      console.error("Failed to pick contact:", error);
     }
   };
 
@@ -189,7 +227,19 @@ export default function LoanFormScreen() {
 
         {/* Person Name */}
         <View style={s.field}>
-          <Text style={s.label}>Person Name *</Text>
+          <View style={s.labelRow}>
+            <Text style={s.label}>Person Name *</Text>
+
+            <TouchableOpacity
+              style={s.contactButton}
+              onPress={pickContact}
+              activeOpacity={0.7}
+            >
+              <Feather name="book" size={14} color={colors.teal[600]} />
+              <Text style={s.contactButtonText}>Contacts</Text>
+            </TouchableOpacity>
+          </View>
+
           <Controller
             control={control}
             name="personName"
@@ -198,6 +248,7 @@ export default function LoanFormScreen() {
                 <View style={s.inputPrefix}>
                   <Feather name="user" size={15} color={colors.teal[500]} />
                 </View>
+
                 <TextInput
                   style={s.textInput}
                   placeholder="e.g. Rahim"
@@ -209,6 +260,7 @@ export default function LoanFormScreen() {
               </View>
             )}
           />
+
           {errors.personName && (
             <Text style={s.fieldError}>{errors.personName.message}</Text>
           )}
@@ -266,7 +318,60 @@ export default function LoanFormScreen() {
             <Text style={s.fieldError}>{errors.amount.message}</Text>
           )}
         </View>
-
+        {/* Account */}
+        <View style={s.field}>
+          <Text style={s.label}>Account *</Text>
+          <Controller
+            control={control}
+            name="accountId"
+            render={({ field: { onChange, value } }) => (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={s.chipRow}>
+                  {accounts.map((acc) => (
+                    <TouchableOpacity
+                      key={acc.id}
+                      style={[s.chip, value === acc.id && s.chipSelected]}
+                      onPress={() => onChange(acc.id)}
+                    >
+                      <Text
+                        style={[
+                          s.chipLabel,
+                          value === acc.id && s.chipLabelSelected,
+                        ]}
+                      >
+                        {acc.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+          />
+          {errors.accountId && (
+            <Text style={s.fieldError}>{errors.accountId.message}</Text>
+          )}
+        </View>
+        {selectedAccount && (
+          <View style={s.balanceInfoRow}>
+            <Text style={s.balanceInfoText}>
+              Current: ৳{selectedAccount.currentBalance.toLocaleString()}
+            </Text>
+            {projectedBalance !== null && parsedAmount > 0 && (
+              <Text
+                style={[
+                  s.balanceInfoText,
+                  s.balanceInfoAfter,
+                  {
+                    color:
+                      projectedBalance < 0 ? colors.red[500] : colors.teal[600],
+                  },
+                ]}
+              >
+                After: ৳{projectedBalance.toLocaleString()}
+              </Text>
+            )}
+          </View>
+        )}
         {/* Loan Date */}
         <View style={s.field}>
           <Text style={s.label}>Loan Date *</Text>
@@ -371,40 +476,6 @@ export default function LoanFormScreen() {
             />
           </View>
         )}
-
-        {/* Account */}
-        <View style={s.field}>
-          <Text style={s.label}>Account *</Text>
-          <Controller
-            control={control}
-            name="accountId"
-            render={({ field: { onChange, value } }) => (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={s.chipRow}>
-                  {accounts.map((acc) => (
-                    <TouchableOpacity
-                      key={acc.id}
-                      style={[s.chip, value === acc.id && s.chipSelected]}
-                      onPress={() => onChange(acc.id)}
-                    >
-                      <Text
-                        style={[
-                          s.chipLabel,
-                          value === acc.id && s.chipLabelSelected,
-                        ]}
-                      >
-                        {acc.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
-          />
-          {errors.accountId && (
-            <Text style={s.fieldError}>{errors.accountId.message}</Text>
-          )}
-        </View>
 
         {/* Purpose */}
         <View style={s.field}>
@@ -565,4 +636,39 @@ const s = StyleSheet.create({
   },
   iosPickerTitle: { fontSize: 14, fontWeight: "600", color: colors.gray[700] },
   iosPickerDone: { fontSize: 14, fontWeight: "700", color: colors.teal[600] },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  contactButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: colors.teal[50],
+  },
+
+  contactButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.teal[600],
+  },
+  balanceInfoRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 2,
+    marginLeft: 2,
+  },
+  balanceInfoText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.gray[500],
+  },
+  balanceInfoAfter: {
+    fontWeight: "700",
+  },
 });
