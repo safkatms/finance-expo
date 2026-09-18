@@ -83,12 +83,15 @@ function BudgetCard({
   item,
   onEdit,
   onDelete,
+  onPress,
 }: {
   item: BudgetItem;
   onEdit: () => void;
   onDelete: () => void;
+  onPress?: () => void;
 }) {
   const isOverall = !item.categoryId;
+  const isUnbudgeted = item.budgeted === 0;
   const accentColor = item.categoryColor ?? colors.teal[500];
   const overColor =
     item.percentUsed >= 100
@@ -98,9 +101,12 @@ function BudgetCard({
         : colors.green[600];
 
   return (
-    <View style={s.card}>
+    <TouchableOpacity
+      style={[s.card, isUnbudgeted && s.cardUnbudgeted]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
       <View style={s.cardTop}>
-        {/* Icon / label */}
         <View style={[s.iconWrap, { backgroundColor: accentColor + "18" }]}>
           {isOverall ? (
             <Feather name="layers" size={16} color={accentColor} />
@@ -112,42 +118,64 @@ function BudgetCard({
         </View>
 
         <View style={s.cardMeta}>
-          <Text style={s.cardTitle}>
-            {isOverall ? "Overall Budget" : (item.categoryName ?? "Category")}
-          </Text>
+          <View style={s.cardTitleRow}>
+            <Text style={s.cardTitle}>
+              {isOverall ? "Overall Budget" : (item.categoryName ?? "Category")}
+            </Text>
+            {isUnbudgeted && (
+              <View style={s.unbudgetedBadge}>
+                <Text style={s.unbudgetedBadgeLabel}>No budget</Text>
+              </View>
+            )}
+          </View>
           <Text style={s.cardSub}>
-            {fmt(item.spent)} spent of {fmt(item.budgeted)}
+            {isUnbudgeted
+              ? `${fmt(item.spent)} spent · no budget set`
+              : `${fmt(item.spent)} spent of ${fmt(item.budgeted)}`}
           </Text>
         </View>
 
         <View style={s.cardRight}>
-          <Text style={[s.remainLabel, { color: overColor }]}>
-            {item.remaining >= 0
-              ? fmt(item.remaining)
-              : `-${fmt(Math.abs(item.remaining))}`}
+          <Text style={[s.remainLabel, { color: colors.red[500] }]}>
+            {isUnbudgeted
+              ? `-${fmt(item.spent)}`
+              : item.remaining >= 0
+                ? fmt(item.remaining)
+                : `-${fmt(Math.abs(item.remaining))}`}
           </Text>
           <Text style={s.remainSub}>
-            {item.remaining >= 0 ? "left" : "over"}
+            {isUnbudgeted ? "over" : item.remaining >= 0 ? "left" : "over"}
           </Text>
         </View>
       </View>
 
-      <ProgressBar pct={item.percentUsed} color={accentColor} />
-
-      <View style={s.cardFooter}>
-        <Text style={[s.pctLabel, { color: overColor }]}>
-          {item.percentUsed}% used
-        </Text>
-        <View style={s.cardActions}>
-          <TouchableOpacity onPress={onEdit} hitSlop={8} style={s.actionBtn}>
-            <Feather name="edit-2" size={13} color={colors.teal[600]} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onDelete} hitSlop={8} style={s.actionBtn}>
-            <Feather name="trash-2" size={13} color={colors.red[400]} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
+      {!isUnbudgeted && (
+        <>
+          <ProgressBar pct={item.percentUsed} color={accentColor} />
+          <View style={s.cardFooter}>
+            <Text style={[s.pctLabel, { color: overColor }]}>
+              {item.percentUsed}% used
+            </Text>
+            <View style={s.cardActions}>
+              <TouchableOpacity
+                onPress={onEdit}
+                hitSlop={8}
+                style={s.actionBtn}
+              >
+                <Feather name="edit-2" size={13} color={colors.teal[600]} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onDelete}
+                hitSlop={8}
+                style={s.actionBtn}
+              >
+                <Feather name="trash-2" size={13} color={colors.red[400]} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -207,7 +235,13 @@ export default function BudgetScreen() {
 
   const summary = data;
   const overallItem = summary?.items.find((i) => !i.categoryId);
-  const categoryItems = summary?.items.filter((i) => !!i.categoryId) ?? [];
+  const budgetedCategoryItems =
+    summary?.items.filter((i) => !!i.categoryId && i.budgeted > 0) ?? [];
+  const loanItem = summary?.items.find((i) => i.categoryId === -1);
+  const unbudgetedCategoryItems =
+    summary?.items.filter(
+      (i) => !!i.categoryId && i.budgeted === 0 && i.categoryId !== -1,
+    ) ?? [];
   const isEmpty = !isLoading && summary?.items.length === 0;
 
   return (
@@ -365,11 +399,11 @@ export default function BudgetScreen() {
                 </>
               )}
 
-              {/* Per-category budgets */}
-              {categoryItems.length > 0 && (
+              {/* Budgeted categories */}
+              {budgetedCategoryItems.length > 0 && (
                 <>
                   <Text style={s.sectionLabel}>By Category</Text>
-                  {categoryItems.map((item) => (
+                  {budgetedCategoryItems.map((item) => (
                     <BudgetCard
                       key={item.id}
                       item={item}
@@ -380,12 +414,68 @@ export default function BudgetScreen() {
                         })
                       }
                       onDelete={() => confirmDelete(item)}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(app)/transactions" as any,
+                          params: {
+                            month,
+                            categoryId: item.categoryId,
+                            type: "Expense",
+                          },
+                        })
+                      }
                     />
                   ))}
                 </>
               )}
 
-              {/* Copy from prev month */}
+              {/* Unbudgeted categories with spend */}
+              {unbudgetedCategoryItems.length > 0 && (
+                <>
+                  <Text style={s.sectionLabel}>Unbudgeted Spend</Text>
+                  {unbudgetedCategoryItems.map((item) => (
+                    <BudgetCard
+                      key={`unbudgeted-${item.categoryId}`}
+                      item={item}
+                      onEdit={() => {}}
+                      onDelete={() => {}}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(app)/transactions" as any,
+                          params: {
+                            month,
+                            categoryId: item.categoryId,
+                            type: "Expense",
+                          },
+                        })
+                      }
+                    />
+                  ))}
+                </>
+              )}
+              {loanItem && (
+                <>
+                  <Text style={s.sectionLabel}>Loan Expenses</Text>
+                  <BudgetCard
+                    key="loan"
+                    item={loanItem}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(app)/transactions" as any,
+                        params: {
+                          month,
+                          type: "Expense",
+                          nullCategory: "true",
+                        },
+                      })
+                    }
+                  />
+                </>
+              )}
+
+              {/* Copy from prev month
               <TouchableOpacity
                 style={s.copyBtn}
                 onPress={confirmCopy}
@@ -397,7 +487,7 @@ export default function BudgetScreen() {
                     ? "Copying…"
                     : `Copy from ${shiftMonth(month, -1)}`}
                 </Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </>
           )}
         </ScrollView>
@@ -479,6 +569,10 @@ const s = StyleSheet.create({
     padding: 14,
     gap: 10,
   },
+  cardUnbudgeted: {
+    borderColor: colors.red[100],
+    backgroundColor: colors.red[50],
+  },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 12 },
   iconWrap: {
     width: 40,
@@ -488,6 +582,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   cardMeta: { flex: 1, gap: 2 },
+  cardTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   cardTitle: { fontSize: 14, fontWeight: "700", color: colors.gray[900] },
   cardSub: { fontSize: 12, color: colors.gray[400] },
   cardRight: { alignItems: "flex-end", gap: 1 },
@@ -509,6 +604,18 @@ const s = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.gray[100],
+  },
+
+  unbudgetedBadge: {
+    backgroundColor: colors.red[100],
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  unbudgetedBadgeLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.red[500],
   },
 
   empty: { alignItems: "center", gap: 14, paddingTop: 60 },

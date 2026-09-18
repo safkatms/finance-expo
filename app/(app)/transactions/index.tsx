@@ -25,6 +25,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { Platform } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useLocalSearchParams } from "expo-router";
 
 const TYPE_COLORS: Record<TxnType, string> = {
   Income: colors.green[500],
@@ -75,7 +76,7 @@ const fmt = (v: number | string) =>
 
 // ─── Filter state type ───────────────────────────────────────────────────────
 interface Filters {
-  mode: "month" | "range"; // month picker vs custom date range
+  mode: "month" | "range";
   month: string;
   fromDate: string;
   toDate: string;
@@ -83,6 +84,7 @@ interface Filters {
   categoryId: number | undefined;
   accountId: number | undefined;
   search: string;
+  nullCategory: boolean; // ← add
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -94,6 +96,7 @@ const DEFAULT_FILTERS: Filters = {
   categoryId: undefined,
   accountId: undefined,
   search: "",
+  nullCategory: false,
 };
 
 function activeFilterCount(f: Filters) {
@@ -106,7 +109,9 @@ function activeFilterCount(f: Filters) {
 }
 
 // ─── Picker Modal ────────────────────────────────────────────────────────────
-function PickerModal<T extends { id: number | string; name: string }>({
+function PickerModal<
+  T extends { id: number | string; name: string; icon?: string | null },
+>({
   visible,
   title,
   items,
@@ -150,9 +155,12 @@ function PickerModal<T extends { id: number | string; name: string }>({
                   onClose();
                 }}
               >
-                <Text style={[pm.itemText, !selected && pm.itemTextActive]}>
-                  All
-                </Text>
+                <View style={pm.itemLeft}>
+                  <Text style={pm.itemIcon}>🔍</Text>
+                  <Text style={[pm.itemText, !selected && pm.itemTextActive]}>
+                    All
+                  </Text>
+                </View>
                 {!selected && (
                   <Feather name="check" size={16} color={colors.teal[600]} />
                 )}
@@ -167,11 +175,19 @@ function PickerModal<T extends { id: number | string; name: string }>({
                 onClose();
               }}
             >
-              <Text
-                style={[pm.itemText, selected === item.id && pm.itemTextActive]}
-              >
-                {item.name}
-              </Text>
+              <View style={pm.itemLeft}>
+                {item.icon ? (
+                  <Text style={pm.itemIcon}>{item.icon}</Text>
+                ) : null}
+                <Text
+                  style={[
+                    pm.itemText,
+                    selected === item.id && pm.itemTextActive,
+                  ]}
+                >
+                  {item.name}
+                </Text>
+              </View>
               {selected === item.id && (
                 <Feather name="check" size={16} color={colors.teal[600]} />
               )}
@@ -536,23 +552,49 @@ export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
-
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
   const [catPickerOpen, setCatPickerOpen] = useState(false);
   const [accPickerOpen, setAccPickerOpen] = useState(false);
   const [filterDraft, setFilterDraft] = useState<Filters>(DEFAULT_FILTERS);
   const [draft, setDraft] = useState<Filters>(DEFAULT_FILTERS);
+  const params = useLocalSearchParams<{
+    month?: string;
+    categoryId?: string;
+    type?: string;
+    nullCategory?: string;
+  }>();
+  const LOAN_VIRTUAL_ID = -1;
 
+  const initialFilters: Filters = {
+    ...DEFAULT_FILTERS,
+    month: params.month ?? currentMonth(),
+    categoryId: params.categoryId ? Number(params.categoryId) : undefined,
+    type: params.type ?? "",
+    nullCategory: params.nullCategory === "true",
+  };
+  const [filters, setFilters] = useState<Filters>(initialFilters);
   React.useEffect(() => {
     if (filterOpen) setDraft(filters);
   }, [filterOpen]);
 
-  const { data: categories = [] } = useQuery({
+  const { data: rawCategories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: getCategories,
   });
+
+  const categories = useMemo(
+    () => [
+      ...rawCategories,
+      {
+        id: LOAN_VIRTUAL_ID,
+        name: "Loan Expenses",
+        icon: "🏦",
+        color: null,
+      },
+    ],
+    [rawCategories],
+  );
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["accounts-list"],
@@ -560,11 +602,12 @@ export default function TransactionsScreen() {
   });
 
   const queryParams = useMemo(() => {
+    const isLoanFilter = filters.categoryId === LOAN_VIRTUAL_ID;
     const p: Record<string, unknown> = {
       page,
       limit: 20,
       type: filters.type || undefined,
-      categoryId: filters.categoryId,
+      categoryId: isLoanFilter ? undefined : filters.categoryId,
       accountId: filters.accountId,
       search: filters.search || undefined,
     };
@@ -605,7 +648,13 @@ export default function TransactionsScreen() {
     );
   };
 
-  const txns = data?.data ?? [];
+  const txns = useMemo(() => {
+    const all = data?.data ?? [];
+    if (filters.nullCategory || filters.categoryId === LOAN_VIRTUAL_ID) {
+      return all.filter((t) => t.categoryId === null && t.type === "Expense");
+    }
+    return all;
+  }, [data, filters.nullCategory, filters.categoryId]);
   const meta = data?.meta;
   const filterCount = activeFilterCount(filters);
 
@@ -1016,6 +1065,17 @@ const pm = StyleSheet.create({
   itemActive: { backgroundColor: colors.teal[50] },
   itemText: { fontSize: 15, color: colors.gray[700] },
   itemTextActive: { color: colors.teal[600], fontWeight: "700" },
+  itemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  itemIcon: {
+    fontSize: 18,
+    width: 24,
+    textAlign: "center",
+  },
 });
 
 const fs = StyleSheet.create({
@@ -1371,4 +1431,15 @@ const s = StyleSheet.create({
     paddingVertical: 10,
   },
   retryLabel: { color: "#fff", fontWeight: "700" },
+  itemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  itemIcon: {
+    fontSize: 18,
+    width: 24,
+    textAlign: "center",
+  },
 });
