@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Stack, Redirect } from 'expo-router';
-import { useAuthStore } from '@/store/auth.store';
-import { BottomNav } from '@/components/layout/BottomNav';
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import { Stack, Redirect } from "expo-router";
+import { useAuthStore } from "@/store/auth.store";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 export default function AppLayout() {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -19,6 +19,6 @@ export default function AppLayout() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F9FAFB' },
+  root: { flex: 1, backgroundColor: "#F9FAFB" },
   content: { flex: 1 },
 });

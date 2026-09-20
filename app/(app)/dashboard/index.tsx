@@ -28,6 +28,7 @@ import type {
   PinnedCategory,
 } from "@/types/finance";
 import { setTokens } from "@/lib/axios";
+import { UpdateBanner } from "@/components/ui/UpdateBanner";
 
 const fmt = (value: number) =>
   `৳${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -465,28 +466,16 @@ export default function DashboardScreen() {
             <Text style={styles.heroGreeting}>{greeting}</Text>
           </View>
           <View style={styles.heroActions}>
-            {(user?.role === "admin" || isImpersonating) && (
-              <TouchableOpacity
-                onPress={() => router.push("/(app)/switch-user")}
-                style={styles.heroActionButton}
-                hitSlop={8}
-              >
-                <Feather name="users" size={17} color="rgba(255,255,255,0.9)" />
-              </TouchableOpacity>
-            )}
             <TouchableOpacity
-              onPress={() => router.push("/(app)/change-password")}
+              onPress={() => router.push("/(app)/settings")}
               style={styles.heroActionButton}
               hitSlop={8}
             >
-              <Feather name="lock" size={17} color="rgba(255,255,255,0.9)" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleLogout}
-              style={styles.heroActionButton}
-              hitSlop={8}
-            >
-              <Feather name="log-out" size={17} color="rgba(255,255,255,0.9)" />
+              <Feather
+                name="settings"
+                size={17}
+                color="rgba(255,255,255,0.9)"
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -576,6 +565,7 @@ export default function DashboardScreen() {
           </Text>
         </View>
       </View>
+      <UpdateBanner />
       {isImpersonating && (
         <View style={styles.impersonationBanner}>
           <View style={styles.impersonationLeft}>
@@ -634,9 +624,9 @@ export default function DashboardScreen() {
             }
           />
           <QuickAction
-            icon="plus-square"
-            label="Import"
-            onPress={() => router.push("/(app)/import")}
+            icon="pie-chart"
+            label="Budget"
+            onPress={() => router.push("/(app)/budgets")}
           />
         </View>
       </View>

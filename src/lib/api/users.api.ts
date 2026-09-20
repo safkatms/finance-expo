@@ -7,6 +7,7 @@ export type UserItem = {
     firstName: string;
     lastName: string;
     email: string;
+    phone?: string;
     role: string;
     isActive: boolean;
 };
@@ -17,6 +18,15 @@ export type CreateUserPayload = {
     email: string;
     phone?: string;
     role?: string;
+};
+export type UpdateProfilePayload = {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    timezone?: string;
+    locale?: string;
+    currency?: string;
+    dateFormat?: string;
 };
 
 export type UpdateUserPayload = Partial<CreateUserPayload>;
@@ -76,5 +86,10 @@ export async function deleteUser(id: number): Promise<void> {
 
 export async function getMe(): Promise<User> {
     const res = await api.get<ApiResponse<User>>('/users/me');
+    return res.data.data!;
+}
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<User> {
+    const res = await api.patch<ApiResponse<User>>('/users/me', payload);
     return res.data.data!;
 }

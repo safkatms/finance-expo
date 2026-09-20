@@ -100,6 +100,10 @@ export interface Loan {
     notes: string | null;
     totalPaid: string;
     outstanding: string;
+    interestRate: string | null;
+    interestType: "upfront" | "on_repayment" | null;
+    disbursedAmount: string | null;
+    interestAmount: string | null;
     account?: Account;
     payments?: LoanPayment[];
     createdAt: string;

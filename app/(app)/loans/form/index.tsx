@@ -53,6 +53,8 @@ function displayFmt(iso: string) {
 function todayISO() {
   return fmt(new Date());
 }
+const fmtMoney = (v: number) =>
+  `৳${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
 type ActiveField = "loanDate" | "dueDate" | null;
 
@@ -61,12 +63,15 @@ export default function LoanFormScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const [activeField, setActiveField] = useState<ActiveField>(null);
+  const [interestRate, setInterestRate] = useState("");
+  const [interestType, setInterestType] = useState<
+    "upfront" | "on_repayment" | null
+  >(null);
 
   const { data: accountsData } = useQuery({
     queryKey: ["accounts"],
     queryFn: getAccountsWithNetWorth,
   });
-
   const accounts = accountsData?.accounts ?? [];
 
   const {
@@ -88,29 +93,46 @@ export default function LoanFormScreen() {
       notes: "",
     },
   });
-  // after accounts const
+
   const watchedAccountId = watch("accountId");
   const watchedAmount = watch("amount");
+  const direction = watch("direction");
+  const loanDate = watch("loanDate");
+  const dueDate = watch("dueDate");
+
   const selectedAccount = accounts.find((a) => a.id === watchedAccountId);
   const parsedAmount = parseFloat(watchedAmount || "0") || 0;
-  const direction = watch("direction");
+
+  // Interest derived values
+  const rate = parseFloat(interestRate) || 0;
+  const interestAmount =
+    parsedAmount && rate
+      ? parseFloat(((parsedAmount * rate) / 100).toFixed(2))
+      : 0;
+  const disbursed =
+    interestType === "upfront" ? parsedAmount - interestAmount : parsedAmount;
+  const repayable =
+    interestType === "on_repayment"
+      ? parsedAmount + interestAmount
+      : parsedAmount;
 
   const projectedBalance = selectedAccount
     ? direction === "Gave"
-      ? selectedAccount.currentBalance - parsedAmount
-      : selectedAccount.currentBalance + parsedAmount
+      ? selectedAccount.currentBalance - disbursed
+      : selectedAccount.currentBalance + disbursed
     : null;
-  // After the accounts query
-  useEffect(() => {
-    if (!accounts.length) return; // add isEdit if you add edit support later
 
+  useEffect(() => {
+    if (!accounts.length) return;
     const defaultAccount = accounts.find((acc) => acc.isDefault);
     if (!defaultAccount) return;
-
     setValue("accountId", defaultAccount.id);
   }, [accounts, setValue]);
-  const loanDate = watch("loanDate");
-  const dueDate = watch("dueDate");
+
+  // Reset interest type when rate is cleared
+  useEffect(() => {
+    if (!rate) setInterestType(null);
+  }, [rate]);
 
   const saveMut = useMutation({
     mutationFn: (data: FormData) =>
@@ -119,11 +141,13 @@ export default function LoanFormScreen() {
         direction: data.direction,
         personName: data.personName,
         personPhone: data.personPhone || undefined,
-        amount: parseFloat(data.amount),
+        amount: parsedAmount,
         accountId: data.accountId,
         dueDate: data.dueDate || undefined,
         purpose: data.purpose || undefined,
         notes: data.notes || undefined,
+        interestRate: rate || undefined,
+        interestType: interestType || undefined,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["loans"] });
@@ -136,19 +160,16 @@ export default function LoanFormScreen() {
 
   const handleDateChange = (date?: Date) => {
     if (Platform.OS === "android") setActiveField(null);
-    if (date && activeField) {
+    if (date && activeField)
       setValue(activeField, fmt(date), { shouldValidate: true });
-    }
   };
 
   const pickContact = async () => {
     try {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== "granted") return;
-
       const contact = await Contacts.presentContactPickerAsync();
       if (!contact) return;
-
       const phone = contact.phoneNumbers?.[0]?.number ?? "";
       setValue("personName", contact.name ?? "", { shouldValidate: true });
       setValue("personPhone", phone, { shouldValidate: true });
@@ -163,7 +184,7 @@ export default function LoanFormScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <PageHeader
-        title={"New loan"}
+        title="New loan"
         variant="teal"
         rightTextAction={{
           label: saveMut.isPending ? "Saving…" : "Save",
@@ -229,7 +250,6 @@ export default function LoanFormScreen() {
         <View style={s.field}>
           <View style={s.labelRow}>
             <Text style={s.label}>Person Name *</Text>
-
             <TouchableOpacity
               style={s.contactButton}
               onPress={pickContact}
@@ -239,7 +259,6 @@ export default function LoanFormScreen() {
               <Text style={s.contactButtonText}>Contacts</Text>
             </TouchableOpacity>
           </View>
-
           <Controller
             control={control}
             name="personName"
@@ -248,7 +267,6 @@ export default function LoanFormScreen() {
                 <View style={s.inputPrefix}>
                   <Feather name="user" size={15} color={colors.teal[500]} />
                 </View>
-
                 <TextInput
                   style={s.textInput}
                   placeholder="e.g. Rahim"
@@ -260,7 +278,6 @@ export default function LoanFormScreen() {
               </View>
             )}
           />
-
           {errors.personName && (
             <Text style={s.fieldError}>{errors.personName.message}</Text>
           )}
@@ -318,6 +335,125 @@ export default function LoanFormScreen() {
             <Text style={s.fieldError}>{errors.amount.message}</Text>
           )}
         </View>
+
+        {/* Interest Rate */}
+        <View style={s.field}>
+          <Text style={s.label}>Interest Rate (optional)</Text>
+          <View style={s.inputRow}>
+            <View style={s.inputPrefix}>
+              <Feather name="percent" size={15} color={colors.teal[500]} />
+            </View>
+            <TextInput
+              style={s.textInput}
+              placeholder="0"
+              placeholderTextColor={colors.gray[400]}
+              keyboardType="decimal-pad"
+              value={interestRate}
+              onChangeText={setInterestRate}
+            />
+          </View>
+        </View>
+
+        {/* Interest Type — only when rate > 0 */}
+        {rate > 0 && parsedAmount > 0 && (
+          <View style={s.field}>
+            <Text style={s.label}>How is interest applied?</Text>
+            <View style={s.dirRow}>
+              <TouchableOpacity
+                style={[
+                  s.interestTypeBtn,
+                  interestType === "upfront" && s.interestTypeBtnActive,
+                ]}
+                onPress={() => setInterestType("upfront")}
+              >
+                <Feather
+                  name="scissors"
+                  size={14}
+                  color={
+                    interestType === "upfront"
+                      ? colors.teal[600]
+                      : colors.gray[400]
+                  }
+                />
+                <View>
+                  <Text
+                    style={[
+                      s.interestTypeBtnLabel,
+                      interestType === "upfront" &&
+                        s.interestTypeBtnLabelActive,
+                    ]}
+                  >
+                    Deducted upfront
+                  </Text>
+                  <Text style={s.interestTypeBtnSub}>
+                    Receive {fmtMoney(parsedAmount - interestAmount)}, repay{" "}
+                    {fmtMoney(parsedAmount)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  s.interestTypeBtn,
+                  interestType === "on_repayment" && s.interestTypeBtnActive,
+                ]}
+                onPress={() => setInterestType("on_repayment")}
+              >
+                <Feather
+                  name="plus-circle"
+                  size={14}
+                  color={
+                    interestType === "on_repayment"
+                      ? colors.teal[600]
+                      : colors.gray[400]
+                  }
+                />
+                <View>
+                  <Text
+                    style={[
+                      s.interestTypeBtnLabel,
+                      interestType === "on_repayment" &&
+                        s.interestTypeBtnLabelActive,
+                    ]}
+                  >
+                    Added on repayment
+                  </Text>
+                  <Text style={s.interestTypeBtnSub}>
+                    Receive {fmtMoney(parsedAmount)}, repay{" "}
+                    {fmtMoney(parsedAmount + interestAmount)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {interestType && (
+              <View style={s.interestPreview}>
+                <View style={s.interestPreviewRow}>
+                  <Text style={s.interestPreviewLabel}>Interest amount</Text>
+                  <Text style={s.interestPreviewValue}>
+                    {fmtMoney(interestAmount)}
+                  </Text>
+                </View>
+                <View style={s.interestDivider} />
+                <View style={s.interestPreviewRow}>
+                  <Text style={s.interestPreviewLabel}>Amount disbursed</Text>
+                  <Text style={s.interestPreviewValue}>
+                    {fmtMoney(disbursed)}
+                  </Text>
+                </View>
+                <View style={s.interestDivider} />
+                <View style={s.interestPreviewRow}>
+                  <Text style={s.interestPreviewLabel}>Total to repay</Text>
+                  <Text
+                    style={[s.interestPreviewValue, s.interestPreviewTotal]}
+                  >
+                    {fmtMoney(repayable)}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Account */}
         <View style={s.field}>
           <Text style={s.label}>Account *</Text>
@@ -351,12 +487,13 @@ export default function LoanFormScreen() {
             <Text style={s.fieldError}>{errors.accountId.message}</Text>
           )}
         </View>
+
         {selectedAccount && (
           <View style={s.balanceInfoRow}>
             <Text style={s.balanceInfoText}>
               Current: ৳{selectedAccount.currentBalance.toLocaleString()}
             </Text>
-            {projectedBalance !== null && parsedAmount > 0 && (
+            {projectedBalance !== null && disbursed > 0 && (
               <Text
                 style={[
                   s.balanceInfoText,
@@ -372,6 +509,7 @@ export default function LoanFormScreen() {
             )}
           </View>
         )}
+
         {/* Loan Date */}
         <View style={s.field}>
           <Text style={s.label}>Loan Date *</Text>
@@ -396,7 +534,6 @@ export default function LoanFormScreen() {
           {errors.loanDate && (
             <Text style={s.fieldError}>{errors.loanDate.message}</Text>
           )}
-
           {activeField === "loanDate" && Platform.OS === "android" && (
             <DateTimePicker
               mode="date"
@@ -448,7 +585,6 @@ export default function LoanFormScreen() {
               {dueDate ? displayFmt(dueDate) : "Select date"}
             </Text>
           </TouchableOpacity>
-
           {activeField === "dueDate" && Platform.OS === "android" && (
             <DateTimePicker
               mode="date"
@@ -537,7 +673,6 @@ export default function LoanFormScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.gray[50] },
-
   content: { padding: 16, gap: 20 },
 
   field: { gap: 6 },
@@ -549,6 +684,12 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
     marginLeft: 2,
   },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  fieldError: { fontSize: 12, color: colors.red[500], marginLeft: 4 },
 
   inputRow: {
     flexDirection: "row",
@@ -585,7 +726,6 @@ const s = StyleSheet.create({
   textareaRow: { alignItems: "flex-start" },
   textarea: { height: 88, paddingTop: 14, textAlignVertical: "top" },
   currencySymbol: { fontSize: 16, fontWeight: "700", color: colors.teal[500] },
-  fieldError: { fontSize: 12, color: colors.red[500], marginLeft: 4 },
 
   dirRow: { flexDirection: "row", gap: 10 },
   dirBtn: {
@@ -602,6 +742,66 @@ const s = StyleSheet.create({
   },
   dirBtnLabel: { fontSize: 14, fontWeight: "700", color: colors.gray[500] },
 
+  // Interest type selector
+  interestTypeBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.gray[200],
+    backgroundColor: "#fff",
+  },
+  interestTypeBtnActive: {
+    borderColor: colors.teal[400],
+    backgroundColor: colors.teal[50],
+  },
+  interestTypeBtnLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.gray[500],
+  },
+  interestTypeBtnLabelActive: { color: colors.teal[700] },
+  interestTypeBtnSub: {
+    fontSize: 10,
+    color: colors.gray[400],
+    marginTop: 2,
+    flexWrap: "wrap",
+  },
+
+  // Interest preview card
+  interestPreview: {
+    backgroundColor: colors.teal[50],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.teal[100],
+    padding: 12,
+    gap: 8,
+  },
+  interestPreviewRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  interestPreviewLabel: {
+    fontSize: 12,
+    color: colors.teal[700],
+    fontWeight: "600",
+  },
+  interestPreviewValue: {
+    fontSize: 13,
+    color: colors.teal[800],
+    fontWeight: "700",
+  },
+  interestPreviewTotal: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.teal[700],
+  },
+  interestDivider: { height: 1, backgroundColor: colors.teal[100] },
+
   chipRow: { flexDirection: "row", gap: 8 },
   chip: {
     paddingHorizontal: 14,
@@ -617,6 +817,30 @@ const s = StyleSheet.create({
   },
   chipLabel: { fontSize: 13, fontWeight: "600", color: colors.gray[600] },
   chipLabelSelected: { color: colors.teal[700] },
+
+  balanceInfoRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 2,
+    marginLeft: 2,
+  },
+  balanceInfoText: { fontSize: 12, fontWeight: "600", color: colors.gray[500] },
+  balanceInfoAfter: { fontWeight: "700" },
+
+  contactButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: colors.teal[50],
+  },
+  contactButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.teal[600],
+  },
 
   iosPickerWrap: {
     backgroundColor: "#fff",
@@ -636,39 +860,4 @@ const s = StyleSheet.create({
   },
   iosPickerTitle: { fontSize: 14, fontWeight: "600", color: colors.gray[700] },
   iosPickerDone: { fontSize: 14, fontWeight: "700", color: colors.teal[600] },
-  labelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  contactButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: colors.teal[50],
-  },
-
-  contactButtonText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.teal[600],
-  },
-  balanceInfoRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 2,
-    marginLeft: 2,
-  },
-  balanceInfoText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.gray[500],
-  },
-  balanceInfoAfter: {
-    fontWeight: "700",
-  },
 });

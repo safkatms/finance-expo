@@ -35,6 +35,8 @@ export interface CreateLoanPayload {
     dueDate?: string;
     purpose?: string;
     notes?: string;
+    interestRate?: number;
+    interestType?: 'upfront' | 'on_repayment';
 }
 
 export async function createLoan(payload: CreateLoanPayload): Promise<Loan> {

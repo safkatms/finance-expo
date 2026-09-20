@@ -212,7 +212,42 @@ export default function LoanDetailScreen() {
           <Text style={s.dirLabel}>{dirLabel}</Text>
 
           <Text style={s.heroAmount}>{fmt(loan.amount)}</Text>
-
+          {loan.interestRate && (
+            <View style={s.interestBanner}>
+              <View style={s.interestBannerHeader}>
+                <Feather name="percent" size={13} color={colors.amber[600]} />
+                <Text style={s.interestBannerTitle}>
+                  {loan.interestRate}% ·{" "}
+                  {loan.interestType === "upfront"
+                    ? "Deducted upfront"
+                    : "Added on repayment"}
+                </Text>
+              </View>
+              <View style={s.interestBannerRow}>
+                <Text style={s.interestBannerLabel}>Disbursed</Text>
+                <Text style={s.interestBannerValue}>
+                  {fmt(Number(loan.disbursedAmount))}
+                </Text>
+              </View>
+              <View style={s.interestBannerRow}>
+                <Text style={s.interestBannerLabel}>Interest</Text>
+                <Text style={s.interestBannerValue}>
+                  {fmt(Number(loan.interestAmount))}
+                </Text>
+              </View>
+              <View style={s.interestBannerRow}>
+                <Text style={s.interestBannerLabel}>Total to repay</Text>
+                <Text
+                  style={[
+                    s.interestBannerValue,
+                    { color: colors.amber[700], fontWeight: "900" },
+                  ]}
+                >
+                  {fmt(loan.amount)}
+                </Text>
+              </View>
+            </View>
+          )}
           <View style={s.progressWrap}>
             <View style={s.progressBg}>
               <View
@@ -703,4 +738,34 @@ const s = StyleSheet.create({
   },
   iosPickerTitle: { fontSize: 14, fontWeight: "600", color: colors.gray[700] },
   iosPickerDone: { fontSize: 14, fontWeight: "700", color: colors.teal[600] },
+  interestBanner: {
+    backgroundColor: colors.amber[50],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.amber[100],
+    padding: 12,
+    gap: 8,
+  },
+  interestBannerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 2,
+  },
+  interestBannerTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.amber[700],
+  },
+  interestBannerRow: { flexDirection: "row", justifyContent: "space-between" },
+  interestBannerLabel: {
+    fontSize: 12,
+    color: colors.amber[600],
+    fontWeight: "600",
+  },
+  interestBannerValue: {
+    fontSize: 12,
+    color: colors.amber[900],
+    fontWeight: "700",
+  },
 });
