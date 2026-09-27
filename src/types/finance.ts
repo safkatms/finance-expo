@@ -82,6 +82,8 @@ export interface Transaction {
     category?: Category;
     fromAccount?: Account;
     toAccount?: Account;
+    chargeAmount: string | null;
+    chargeNote: string | null;
     createdAt: string;
 }
 

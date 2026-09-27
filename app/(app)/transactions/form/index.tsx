@@ -44,6 +44,8 @@ const schema = z
     description: z.string().optional(),
     note: z.string().optional(),
     referenceNumber: z.string().optional(),
+    chargeAmount: z.string().optional(),
+    chargeNote: z.string().optional(),
   })
   .superRefine((d, ctx) => {
     if (d.type === "Income" && !d.toAccountId) {
@@ -100,6 +102,7 @@ function AccountPicker({
   onChange,
   error,
   amount,
+  existingAmount,
   txnType,
   direction,
 }: {
@@ -109,6 +112,7 @@ function AccountPicker({
   onChange: (id: number) => void;
   error?: string;
   amount?: string;
+  existingAmount?: number;
   txnType: TxnType;
   direction: "from" | "to";
 }) {
@@ -118,17 +122,18 @@ function AccountPicker({
   let projectedBalance: number | null = null;
   if (selected) {
     const isDebit =
-      (direction === "from" &&
-        (txnType === "Expense" || txnType === "Transfer")) ||
-      false;
+      direction === "from" && (txnType === "Expense" || txnType === "Transfer");
     const isCredit =
-      (direction === "to" &&
-        (txnType === "Income" || txnType === "Transfer")) ||
-      false;
+      direction === "to" && (txnType === "Income" || txnType === "Transfer");
 
-    if (isDebit) projectedBalance = selected.currentBalance - parsedAmount;
-    else if (isCredit)
-      projectedBalance = selected.currentBalance + parsedAmount;
+    // Restore the already-reflected existing amount, then apply new amount
+    if (isDebit) {
+      projectedBalance =
+        selected.currentBalance + (existingAmount ?? 0) - parsedAmount;
+    } else if (isCredit) {
+      projectedBalance =
+        selected.currentBalance - (existingAmount ?? 0) + parsedAmount;
+    }
   }
 
   return (
@@ -240,6 +245,8 @@ export default function TransactionFormScreen() {
     queryKey: ["transaction", id],
     queryFn: () => getTransaction(Number(id)),
     enabled: isEdit,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: accountsData } = useQuery({
@@ -278,6 +285,8 @@ export default function TransactionFormScreen() {
       description: "",
       note: "",
       referenceNumber: "",
+      chargeAmount: "",
+      chargeNote: "",
     },
   });
 
@@ -297,6 +306,10 @@ export default function TransactionFormScreen() {
         description: existing.description ?? "",
         note: existing.note ?? "",
         referenceNumber: existing.referenceNumber ?? "",
+        chargeAmount: existing.chargeAmount
+          ? String(existing.chargeAmount)
+          : "",
+        chargeNote: existing.chargeNote ?? "",
       });
     }
   }, [existing, reset]);
@@ -332,6 +345,10 @@ export default function TransactionFormScreen() {
         description: data.description || undefined,
         note: data.note || undefined,
         referenceNumber: data.referenceNumber || undefined,
+        chargeAmount: data.chargeAmount
+          ? parseFloat(data.chargeAmount)
+          : undefined,
+        chargeNote: data.chargeNote || undefined,
       };
       return isEdit
         ? updateTransaction(Number(id), payload)
@@ -339,6 +356,7 @@ export default function TransactionFormScreen() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["transaction", id] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["accounts-list"] });
       router.back();
@@ -529,7 +547,17 @@ export default function TransactionFormScreen() {
                 value={value}
                 onChange={onChange}
                 error={errors.fromAccountId?.message}
-                amount={isEdit ? undefined : watch("amount")}
+                amount={(() => {
+                  const a = parseFloat(watch("amount") || "0") || 0;
+                  const c = parseFloat(watch("chargeAmount") || "0") || 0;
+                  return String(a + c);
+                })()}
+                existingAmount={
+                  isEdit
+                    ? Number(existing?.amount ?? 0) +
+                      Number(existing?.chargeAmount ?? 0)
+                    : 0
+                }
                 txnType={txnType}
                 direction="from"
               />
@@ -549,7 +577,8 @@ export default function TransactionFormScreen() {
                 value={value}
                 onChange={onChange}
                 error={errors.toAccountId?.message}
-                amount={isEdit ? undefined : watch("amount")}
+                amount={watch("amount")}
+                existingAmount={isEdit ? Number(existing?.amount ?? 0) : 0}
                 txnType={txnType}
                 direction="to"
               />
@@ -622,7 +651,53 @@ export default function TransactionFormScreen() {
             )}
           />
         </View>
+        {/* Charge */}
+        <View style={s.field}>
+          <Text style={s.label}>Charge / Fee</Text>
+          <Controller
+            control={control}
+            name="chargeAmount"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <View style={s.inputRow}>
+                <View style={s.inputPrefix}>
+                  <Text style={s.currencySymbol}>৳</Text>
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="0"
+                  placeholderTextColor={colors.gray[400]}
+                  keyboardType="numeric"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
+            )}
+          />
+        </View>
 
+        <View style={s.field}>
+          <Text style={s.label}>Charge Note</Text>
+          <Controller
+            control={control}
+            name="chargeNote"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <View style={s.inputRow}>
+                <View style={s.inputPrefix}>
+                  <Feather name="tag" size={15} color={colors.teal[500]} />
+                </View>
+                <TextInput
+                  style={s.textInput}
+                  placeholder="e.g. bKash fee"
+                  placeholderTextColor={colors.gray[400]}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                />
+              </View>
+            )}
+          />
+        </View>
         {/* Note */}
         <View style={s.field}>
           <Text style={s.label}>Note</Text>

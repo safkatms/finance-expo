@@ -34,6 +34,8 @@ export interface CreateTransactionPayload {
     description?: string;
     note?: string;
     referenceNumber?: string;
+    chargeAmount?: number;
+    chargeNote?: string;
 }
 
 export async function createTransaction(payload: CreateTransactionPayload): Promise<Transaction> {
@@ -51,6 +53,8 @@ export interface UpdateTransactionPayload {
     description?: string;
     note?: string;
     referenceNumber?: string;
+    chargeAmount?: number;
+    chargeNote?: string;
 }
 
 export async function updateTransaction(id: number, payload: UpdateTransactionPayload): Promise<Transaction> {

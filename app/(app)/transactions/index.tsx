@@ -527,6 +527,12 @@ function TxnCard({
           {txn.referenceNumber ? (
             <Text style={s.expandedNote}>Ref: {txn.referenceNumber}</Text>
           ) : null}
+          {txn.chargeAmount && Number(txn.chargeAmount) > 0 ? (
+            <Text style={s.expandedNote}>
+              Charge: ৳{Number(txn.chargeAmount).toLocaleString()}
+              {txn.chargeNote ? ` · ${txn.chargeNote}` : ""}
+            </Text>
+          ) : null}
           <View style={s.actionRow}>
             <TouchableOpacity style={s.actionBtn} onPress={onEdit}>
               <Feather name="edit-2" size={14} color={colors.teal[600]} />
