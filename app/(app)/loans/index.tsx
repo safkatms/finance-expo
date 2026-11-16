@@ -165,6 +165,7 @@ export default function LoansScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["loans"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["savings"] });
     },
     onError: (err) =>
       Alert.alert("Error", getApiErrorMessage(err, "Failed to delete loan")),

@@ -636,6 +636,7 @@ export default function TransactionsScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["savings"] });
     },
   });
 

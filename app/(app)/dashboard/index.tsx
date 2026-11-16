@@ -53,6 +53,20 @@ const parseMonth = (value: string) => {
   return { monthIndex: MONTH_ORDER[month] ?? 0, year: Number(year) || 0 };
 };
 
+const MONTH_NAMES = Object.keys(MONTH_ORDER);
+
+const currentMonthKey = () => {
+  const d = new Date();
+  return `${MONTH_NAMES[d.getMonth()]}-${d.getFullYear()}`;
+};
+
+// "Nov-2026", +1 → "Dec-2026"
+const shiftMonth = (value: string, delta: number) => {
+  const { monthIndex, year } = parseMonth(value);
+  const d = new Date(year, monthIndex + delta, 1);
+  return `${MONTH_NAMES[d.getMonth()]}-${d.getFullYear()}`;
+};
+
 const sortMonths = <T extends { month: string }>(items: T[]) =>
   [...items].sort((a, b) => {
     const aDate = parseMonth(a.month);
@@ -374,11 +388,14 @@ function PinnedCategoryCard({ item }: { item: PinnedCategory }) {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [month] = useState<string | undefined>(undefined);
+  // undefined = current month (server default)
+  const [month, setMonth] = useState<string | undefined>(undefined);
 
-  const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, error, refetch, isRefetching, isPlaceholderData } = useQuery({
     queryKey: ["dashboard", month],
     queryFn: () => getDashboard(month),
+    // keep showing the previous month while the next one loads (no full-screen spinner)
+    placeholderData: (prev) => prev,
   });
   const {
     user,
@@ -446,6 +463,14 @@ export default function DashboardScreen() {
     .reduce((sum, a) => sum + a.currentBalance, 0);
   const savingsIsPositive = data.monthMetrics.savings >= 0;
 
+  const nowMonth = currentMonthKey();
+  const shownMonth = month ?? data.month;
+  const isCurrentMonth = shownMonth === nowMonth;
+  const goToMonth = (delta: number) => {
+    const next = shiftMonth(shownMonth, delta);
+    setMonth(next === nowMonth ? undefined : next);
+  };
+
   return (
     <ScrollView
       style={styles.root}
@@ -498,7 +523,8 @@ export default function DashboardScreen() {
               ]}
             >
               {fmt(Math.abs(data.monthMetrics.savings))}{" "}
-              {savingsIsPositive ? "saved" : "loss"} this month
+              {savingsIsPositive ? "saved" : "loss"}{" "}
+              {isCurrentMonth ? "this month" : `in ${data.month}`}
             </Text>
           </View>
         </View>
@@ -557,8 +583,31 @@ export default function DashboardScreen() {
 
         <View style={styles.heroFooter}>
           <View style={styles.monthBadge}>
+            <TouchableOpacity
+              onPress={() => goToMonth(-1)}
+              hitSlop={10}
+              style={styles.monthArrow}
+            >
+              <Feather name="chevron-left" size={15} color="#CCFBF1" />
+            </TouchableOpacity>
             <View style={styles.monthDot} />
-            <Text style={styles.monthText}>{data.month}</Text>
+            <Text style={styles.monthText}>
+              {shownMonth}
+              {isPlaceholderData ? " …" : ""}
+            </Text>
+            <TouchableOpacity
+              onPress={() => goToMonth(1)}
+              hitSlop={10}
+              disabled={isCurrentMonth}
+              style={[styles.monthArrow, isCurrentMonth && { opacity: 0.3 }]}
+            >
+              <Feather name="chevron-right" size={15} color="#CCFBF1" />
+            </TouchableOpacity>
+            {!isCurrentMonth && (
+              <TouchableOpacity onPress={() => setMonth(undefined)} hitSlop={8}>
+                <Text style={styles.monthToday}>Today</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={styles.accountCount}>
             {data.accounts.length} accounts
@@ -627,6 +676,11 @@ export default function DashboardScreen() {
             icon="pie-chart"
             label="Budget"
             onPress={() => router.push("/(app)/budgets")}
+          />
+          <QuickAction
+            icon="target"
+            label="Savings"
+            onPress={() => router.push("/(app)/savings" as any)}
           />
         </View>
       </View>
@@ -1046,6 +1100,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: "rgba(204,251,241,0.8)",
+  },
+  monthArrow: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  monthToday: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#99F6E4",
+    marginLeft: 4,
+    textDecorationLine: "underline",
   },
   accountCount: {
     fontSize: 11,

@@ -89,6 +89,7 @@ export default function LoanDetailScreen() {
       qc.invalidateQueries({ queryKey: ["loan", id] });
       qc.invalidateQueries({ queryKey: ["loans"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["savings"] });
       setShowPayment(false);
       setPayAmount("");
       setPayNote("");

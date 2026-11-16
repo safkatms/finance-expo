@@ -211,6 +211,7 @@ export default function ImportScreen() {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["loans"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["savings"] });
     } catch (err) {
       Alert.alert(
         "Import Failed",

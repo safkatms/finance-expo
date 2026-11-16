@@ -287,3 +287,72 @@ export interface MonthBudgetSummary {
     percentUsed: number;
     items: BudgetItem[];
 }
+
+// General Savings (tracking only — never changes account balances)
+export type SavingsMode = 'auto' | 'manual';
+export type SavingsEntryType = 'deposit' | 'withdraw';
+
+export interface SavingsPlan {
+    id: number;
+    year: number;
+    mode: SavingsMode;
+    monthlyTarget: number | null;
+    yearlyTarget: number | null;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SavingsEntry {
+    id: number;
+    planId: number;
+    entryDate: string;
+    month: string;
+    type: SavingsEntryType;
+    amount: number;
+    accountId: number;
+    account?: { id: number; name: string };
+    note: string | null;
+    createdAt: string;
+}
+
+export interface SavingsMonthRow {
+    month: string;
+    income: number;
+    expense: number;
+    budgeted: number | null;
+    expectedSavings: number | null;
+    deposits: number;
+    withdrawals: number;
+    saved: number;
+}
+
+export interface SavingsOverview {
+    year: number;
+    hasPlan: boolean;
+    plan: SavingsPlan | null;
+    previousPlan: SavingsPlan | null;
+    currentMonth: {
+        month: string;
+        saved: number;
+        income: number;
+        expense: number;
+        budgeted: number | null;
+        expectedSavings: number | null;
+        deposits: number;
+        withdrawals: number;
+        target: number | null;
+        percent: number | null;
+    } | null;
+    yearly: {
+        saved: number;
+        target: number | null;
+        targetDerived: boolean;
+        percent: number | null;
+    } | null;
+    months: SavingsMonthRow[];
+    lifetime: {
+        total: number;
+        byYear: { year: number; mode: SavingsMode; saved: number }[];
+    };
+}

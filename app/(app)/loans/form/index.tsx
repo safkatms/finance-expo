@@ -152,6 +152,7 @@ export default function LoanFormScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["loans"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["savings"] });
       router.back();
     },
   });
