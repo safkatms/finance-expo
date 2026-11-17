@@ -4,6 +4,7 @@ import type {
     SavingsEntry,
     SavingsEntryType,
     SavingsMode,
+    SavingsMonthTarget,
     SavingsOverview,
     SavingsPlan,
 } from '@/types/finance';
@@ -13,14 +14,20 @@ export interface CreateSavingsPlanPayload {
     mode: SavingsMode;
     monthlyTarget?: number;
     yearlyTarget?: number;
+    weeklyTarget?: number;
+    weekStartsOn?: number;
+    monthTargets?: SavingsMonthTarget[];
     notes?: string;
 }
 
-// null clears a target, undefined leaves it unchanged
+// null clears a target, undefined leaves it unchanged; monthTargets replaces the set ([] clears)
 export interface UpdateSavingsPlanPayload {
     mode?: SavingsMode;
     monthlyTarget?: number | null;
     yearlyTarget?: number | null;
+    weeklyTarget?: number | null;
+    weekStartsOn?: number;
+    monthTargets?: SavingsMonthTarget[];
     notes?: string | null;
 }
 
@@ -30,6 +37,9 @@ export interface RenewSavingsPlanPayload {
     mode?: SavingsMode;
     monthlyTarget?: number | null;
     yearlyTarget?: number | null;
+    weeklyTarget?: number | null;
+    weekStartsOn?: number;
+    monthTargets?: SavingsMonthTarget[];
 }
 
 export interface CreateSavingsEntryPayload {

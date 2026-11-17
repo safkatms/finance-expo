@@ -39,6 +39,9 @@ const TARGET_KINDS = [
 ] as const;
 type TargetKind = (typeof TARGET_KINDS)[number]["key"];
 
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 const positive = (v?: string) => !!v && !isNaN(parseFloat(v)) && parseFloat(v) > 0;
 
 const schema = z
@@ -47,10 +50,15 @@ const schema = z
     targetKind: z.enum(["none", "monthly", "yearly", "both"]),
     monthlyTarget: z.string().optional(),
     yearlyTarget: z.string().optional(),
+    weeklyTarget: z.string().optional(),
+    perMonth: z.boolean(),
     notes: z.string().optional(),
   })
   .superRefine((d, ctx) => {
-    if ((d.targetKind === "monthly" || d.targetKind === "both") && !positive(d.monthlyTarget)) {
+    if (d.weeklyTarget && !positive(d.weeklyTarget)) {
+      ctx.addIssue({ code: "custom", path: ["weeklyTarget"], message: "Enter a valid weekly target" });
+    }
+    if (!d.perMonth && (d.targetKind === "monthly" || d.targetKind === "both") && !positive(d.monthlyTarget)) {
       ctx.addIssue({ code: "custom", path: ["monthlyTarget"], message: "Enter a monthly target" });
     }
     if ((d.targetKind === "yearly" || d.targetKind === "both") && !positive(d.yearlyTarget)) {
@@ -98,8 +106,16 @@ export default function SavingsPlanFormScreen() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { mode: "auto", targetKind: "none", monthlyTarget: "", yearlyTarget: "", notes: "" },
+    defaultValues: {
+      mode: "auto", targetKind: "none", monthlyTarget: "", yearlyTarget: "",
+      weeklyTarget: "", perMonth: false, notes: "",
+    },
   });
+
+  // Per-month amounts (month 1-12 -> amount text) and week start day
+  const [monthAmounts, setMonthAmounts] = useState<Record<number, string>>({});
+  const [weekStartsOn, setWeekStartsOn] = useState(1);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (source) {
@@ -108,14 +124,22 @@ export default function SavingsPlanFormScreen() {
         targetKind: kindOf(source),
         monthlyTarget: source.monthlyTarget !== null ? String(source.monthlyTarget) : "",
         yearlyTarget: source.yearlyTarget !== null ? String(source.yearlyTarget) : "",
+        weeklyTarget: source.weeklyTarget !== null ? String(source.weeklyTarget) : "",
+        perMonth: source.monthTargets.length > 0,
         notes: isEdit ? source.notes ?? "" : "",
       });
+      setMonthAmounts(
+        Object.fromEntries(source.monthTargets.map((t) => [t.month, String(t.target)])),
+      );
+      setWeekStartsOn(source.weekStartsOn);
     }
   }, [source?.id]);
 
   const mode = watch("mode");
   const targetKind = watch("targetKind");
-  const showMonthly = targetKind === "monthly" || targetKind === "both";
+  const perMonth = watch("perMonth");
+  const selectedMonths = Object.keys(monthAmounts).map(Number).sort((a, b) => a - b);
+  const showMonthly = !perMonth && (targetKind === "monthly" || targetKind === "both");
   const showYearly = targetKind === "yearly" || targetKind === "both";
 
   const invalidate = () => {
@@ -125,7 +149,13 @@ export default function SavingsPlanFormScreen() {
 
   const saveMut = useMutation({
     mutationFn: (d: FormData) => {
-      const monthly = d.targetKind === "monthly" || d.targetKind === "both" ? parseFloat(d.monthlyTarget!) : null;
+      const monthly = !d.perMonth && (d.targetKind === "monthly" || d.targetKind === "both")
+        ? parseFloat(d.monthlyTarget!)
+        : null;
+      const weekly = d.weeklyTarget ? parseFloat(d.weeklyTarget) : null;
+      const monthTargets = d.perMonth
+        ? selectedMonths.map((m) => ({ month: m, target: parseFloat(monthAmounts[m]) }))
+        : [];
       const yearly = d.targetKind === "yearly" || d.targetKind === "both" ? parseFloat(d.yearlyTarget!) : null;
 
       if (isEdit && editId) {
@@ -133,18 +163,27 @@ export default function SavingsPlanFormScreen() {
           mode: d.mode,
           monthlyTarget: monthly,
           yearlyTarget: yearly,
+          weeklyTarget: weekly,
+          weekStartsOn,
+          monthTargets,
           notes: d.notes ? d.notes : null,
         });
       }
       if (isRenew) {
         // Send explicit targets; keepTargets=false so cleared targets stay cleared
-        return renewSavingsPlan({ year, keepTargets: false, mode: d.mode, monthlyTarget: monthly, yearlyTarget: yearly });
+        return renewSavingsPlan({
+          year, keepTargets: false, mode: d.mode, monthlyTarget: monthly, yearlyTarget: yearly,
+          weeklyTarget: weekly, weekStartsOn, monthTargets,
+        });
       }
       return createSavingsPlan({
         year,
         mode: d.mode,
         monthlyTarget: monthly ?? undefined,
         yearlyTarget: yearly ?? undefined,
+        weeklyTarget: weekly ?? undefined,
+        weekStartsOn,
+        ...(monthTargets.length > 0 && { monthTargets }),
         notes: d.notes || undefined,
       });
     },
@@ -153,6 +192,41 @@ export default function SavingsPlanFormScreen() {
       router.back();
     },
   });
+
+  const submit = handleSubmit((d) => {
+    if (d.perMonth) {
+      if (selectedMonths.length === 0) return setLocalError("Pick at least one month");
+      if (selectedMonths.some((m) => !positive(monthAmounts[m]))) {
+        return setLocalError("Enter a target amount for every selected month");
+      }
+    }
+    setLocalError(null);
+    saveMut.mutate(d);
+  });
+
+  const toggleMonth = (m: number) =>
+    setMonthAmounts((prev) => {
+      const next = { ...prev };
+      if (m in next) delete next[m];
+      else next[m] = "";
+      return next;
+    });
+
+  // Select the current month through December (e.g. someone starting in November)
+  const selectFromNow = () => {
+    const first = year === new Date().getFullYear() ? new Date().getMonth() + 1 : 1;
+    setMonthAmounts((prev) => {
+      const next = { ...prev };
+      for (let m = first; m <= 12; m++) if (!(m in next)) next[m] = "";
+      return next;
+    });
+  };
+
+  const applyFirstToAll = () => {
+    const first = monthAmounts[selectedMonths[0]];
+    if (!positive(first)) return;
+    setMonthAmounts(Object.fromEntries(selectedMonths.map((m) => [m, first])));
+  };
 
   const deleteMut = useMutation({
     mutationFn: () => deleteSavingsPlan(editId!),
@@ -187,7 +261,7 @@ export default function SavingsPlanFormScreen() {
         backIcon="x"
         rightTextAction={{
           label: saveMut.isPending ? "Saving…" : "Save",
-          onPress: handleSubmit((d) => saveMut.mutate(d)),
+          onPress: submit,
           disabled: isSubmitting || saveMut.isPending,
         }}
       />
@@ -203,6 +277,8 @@ export default function SavingsPlanFormScreen() {
           {saveMut.isError && (
             <Alert message={getApiErrorMessage(saveMut.error, "Failed to save")} type="error" />
           )}
+
+          {localError && <Alert message={localError} type="error" />}
 
           {/* Year */}
           <View style={s.field}>
@@ -307,6 +383,99 @@ export default function SavingsPlanFormScreen() {
             />
           )}
 
+          {/* Specific months */}
+          <View style={s.field}>
+            <View style={s.labelRow}>
+              <Text style={s.label}>Target specific months</Text>
+              <Controller
+                control={control}
+                name="perMonth"
+                render={({ field: { onChange, value } }) => (
+                  <TouchableOpacity
+                    style={[s.chip, value && s.chipSelected]}
+                    onPress={() => onChange(!value)}
+                  >
+                    <Text style={[s.chipLabel, value && s.chipLabelSelected]}>{value ? "On" : "Off"}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+            <Text style={s.hint}>
+              {perMonth
+                ? "Only the months you pick are tracked, each with its own amount."
+                : "Off: the plan covers the whole year (Jan-Dec)."}
+            </Text>
+          </View>
+
+          {perMonth && (
+            <View style={s.field}>
+              <View style={s.labelRow}>
+                <Text style={s.label}>Months</Text>
+                <TouchableOpacity onPress={selectFromNow} hitSlop={8}>
+                  <Text style={s.suggest}>Current month → Dec</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={s.chipRow}>
+                {MONTH_LABELS.map((label, i) => {
+                  const on = i + 1 in monthAmounts;
+                  return (
+                    <TouchableOpacity
+                      key={label}
+                      style={[s.chip, on && s.chipSelected]}
+                      onPress={() => toggleMonth(i + 1)}
+                    >
+                      <Text style={[s.chipLabel, on && s.chipLabelSelected]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {selectedMonths.length > 1 && (
+                <TouchableOpacity onPress={applyFirstToAll} hitSlop={8}>
+                  <Text style={s.suggest}>Use the first amount for all months</Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedMonths.map((m) => (
+                <View key={m} style={s.inputRow}>
+                  <View style={[s.inputPrefix, { width: 60 }]}>
+                    <Text style={s.chipLabel}>{MONTH_LABELS[m - 1]}</Text>
+                  </View>
+                  <TextInput
+                    style={s.textInput}
+                    placeholder="Target amount"
+                    placeholderTextColor={colors.gray[400]}
+                    keyboardType="numeric"
+                    value={monthAmounts[m]}
+                    onChangeText={(v) => setMonthAmounts((prev) => ({ ...prev, [m]: v }))}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Weekly target */}
+          <AmountField
+            label="Weekly target (optional)"
+            control={control}
+            name="weeklyTarget"
+            error={errors.weeklyTarget?.message}
+          />
+          <View style={s.field}>
+            <Text style={s.label}>Week starts on</Text>
+            <View style={s.chipRow}>
+              {WEEK_DAYS.map((d, i) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[s.chip, weekStartsOn === i && s.chipSelected]}
+                  onPress={() => setWeekStartsOn(i)}
+                >
+                  <Text style={[s.chipLabel, weekStartsOn === i && s.chipLabelSelected]}>{d}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
           {/* Notes */}
           {!isRenew && (
             <View style={s.field}>
@@ -353,7 +522,7 @@ function AmountField({
 }: {
   label: string;
   control: any;
-  name: "monthlyTarget" | "yearlyTarget";
+  name: "monthlyTarget" | "yearlyTarget" | "weeklyTarget";
   error?: string;
   onFillSuggestion?: () => void;
 }) {

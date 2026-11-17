@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/transactions.api";
 import { getAccounts } from "@/lib/api/accounts.api";
 import { getCategories } from "@/lib/api/categories.api";
+import { getSavingsOverview } from "@/lib/api/savings.api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { colors } from "@/components/ui/theme";
 import { Spinner } from "@/components/ui/Spinner";
@@ -30,6 +31,14 @@ import { Alert } from "@/components/ui/Alert";
 import type { Account, Category, TxnType } from "@/types/finance";
 import Feather from "@expo/vector-icons/Feather";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ProgressBar } from "@/components/savings/ProgressBar";
+import {
+  MONTH_NAMES,
+  fmt as fmtMoney,
+  shortDate,
+  remainingLabel,
+  progressColor,
+} from "@/components/savings/format";
 
 const TYPES = ["Income", "Expense", "Transfer"] as const;
 
@@ -292,6 +301,50 @@ export default function TransactionFormScreen() {
 
   const txnType = watch("type");
   const txnDate = watch("txnDate");
+  const amountStr = watch("amount");
+
+  // ─── Live savings-target impact (Auto-mode plans only) ───────────────────
+  // Auto savings = income − expenses, so Income lifts progress and Expense lowers it.
+  // Transfers and charges are excluded, matching how savings are computed.
+  const txnYear = txnDate ? Number(txnDate.split("-")[0]) : new Date().getFullYear();
+  const txnMonth = (() => {
+    if (!txnDate) return "";
+    const [yy, mm] = txnDate.split("-").map(Number);
+    return `${MONTH_NAMES[mm - 1]}-${yy}`;
+  })();
+
+  const { data: savingsOverview } = useQuery({
+    queryKey: ["savings", txnYear, "txn-impact", txnMonth],
+    queryFn: () => getSavingsOverview(txnYear, txnMonth),
+    enabled: !isEdit && !!txnDate && (txnType === "Income" || txnType === "Expense"),
+  });
+
+  const txnAmt =
+    !isNaN(parseFloat(amountStr)) && parseFloat(amountStr) > 0 ? parseFloat(amountStr) : 0;
+  const savingsDelta = txnType === "Income" ? txnAmt : txnType === "Expense" ? -txnAmt : 0;
+
+  const impactRows = (() => {
+    const plan = savingsOverview?.plan;
+    if (!savingsOverview || !plan || plan.mode !== "auto" || txnType === "Transfer") {
+      return [] as { key: string; label: string; saved: number; target: number }[];
+    }
+    const rows: { key: string; label: string; saved: number; target: number }[] = [];
+
+    const monthRow = savingsOverview.months.find((m) => m.month === txnMonth);
+    if (monthRow && monthRow.target !== null) {
+      rows.push({ key: "This month", label: txnMonth, saved: monthRow.saved, target: monthRow.target });
+    }
+    if (plan.weeklyTarget !== null) {
+      const wk = savingsOverview.weeks.find((w) => w.start <= txnDate && txnDate <= w.end);
+      if (wk && wk.target !== null) {
+        rows.push({ key: "This week", label: `${shortDate(wk.start)} – ${shortDate(wk.end)}`, saved: wk.saved, target: wk.target });
+      }
+    }
+    if (savingsOverview.yearly && savingsOverview.yearly.target !== null) {
+      rows.push({ key: "This year", label: String(txnYear), saved: savingsOverview.yearly.saved, target: savingsOverview.yearly.target });
+    }
+    return rows;
+  })();
 
   // Load existing transaction
   useEffect(() => {
@@ -535,6 +588,50 @@ export default function TransactionFormScreen() {
             <Text style={s.fieldError}>{errors.amount.message}</Text>
           )}
         </View>
+
+        {/* Savings target impact (Auto-mode plans) */}
+        {impactRows.length > 0 && (
+          <View style={s.field}>
+            <Text style={s.label}>Savings target impact</Text>
+            <View style={s.impactCard}>
+              {impactRows.map((r) => {
+                const projected = r.saved + savingsDelta;
+                const pct = r.target > 0 ? Math.min(Math.round((projected / r.target) * 100), 999) : 0;
+                const below = projected < r.target;
+                // Neutral until an amount is entered; red once this transaction leaves savings below target
+                const tone =
+                  savingsDelta === 0 ? progressColor(pct) : below ? colors.red[500] : colors.green[600];
+                const remaining = remainingLabel(projected, r.target);
+                return (
+                  <View key={r.key} style={s.impactRow}>
+                    <View style={s.impactTop}>
+                      <Text style={s.impactLabel}>
+                        {r.key} · {r.label}
+                      </Text>
+                      <Text style={[s.impactPct, { color: tone }]}>{pct}%</Text>
+                    </View>
+                    <ProgressBar pct={pct} color={tone} height={6} />
+                    <View style={s.impactBottom}>
+                      <Text style={s.impactMeta}>
+                        {fmtMoney(projected)} / {fmtMoney(r.target)}
+                      </Text>
+                      {remaining && (
+                        <Text style={[s.impactMeta, savingsDelta !== 0 && below && { color: colors.red[500], fontWeight: "700" }]}>
+                          {remaining}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+              {savingsDelta !== 0 && (
+                <Text style={s.impactNote}>
+                  Projected auto savings after this {txnType === "Income" ? "income" : "expense"}.
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* From Account */}
         {(txnType === "Expense" || txnType === "Transfer") && (
@@ -797,6 +894,22 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   typeBtnLabel: { fontSize: 13, fontWeight: "700", color: colors.gray[500] },
+
+  impactCard: {
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: colors.teal[50],
+    borderRadius: 14,
+    padding: 12,
+    gap: 12,
+  },
+  impactRow: { gap: 5 },
+  impactTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  impactLabel: { fontSize: 12, fontWeight: "700", color: colors.gray[700] },
+  impactPct: { fontSize: 12, fontWeight: "800" },
+  impactBottom: { flexDirection: "row", justifyContent: "space-between" },
+  impactMeta: { fontSize: 11, color: colors.gray[500] },
+  impactNote: { fontSize: 11, color: colors.gray[400], fontStyle: "italic" },
 
   chipRow: { flexDirection: "row", gap: 8 },
   chip: {

@@ -298,9 +298,30 @@ export interface SavingsPlan {
     mode: SavingsMode;
     monthlyTarget: number | null;
     yearlyTarget: number | null;
+    weeklyTarget: number | null;
+    weekStartsOn: number; // 0 = Sun … 6 = Sat
+    /** When non-empty, only these months (1–12) are targeted, each with its own amount */
+    monthTargets: SavingsMonthTarget[];
     notes: string | null;
     createdAt: string;
     updatedAt: string;
+}
+
+export interface SavingsMonthTarget {
+    month: number;
+    target: number;
+}
+
+export interface SavingsWeekRow {
+    start: string; // yyyy-MM-dd
+    end: string;
+    income: number;
+    expense: number;
+    deposits: number;
+    withdrawals: number;
+    saved: number;
+    target: number | null;
+    percent: number | null;
 }
 
 export interface SavingsEntry {
@@ -325,6 +346,8 @@ export interface SavingsMonthRow {
     deposits: number;
     withdrawals: number;
     saved: number;
+    /** null = month is not targeted */
+    target: number | null;
 }
 
 export interface SavingsOverview {
@@ -351,6 +374,8 @@ export interface SavingsOverview {
         percent: number | null;
     } | null;
     months: SavingsMonthRow[];
+    weeks: SavingsWeekRow[];
+    currentWeek: SavingsWeekRow | null;
     lifetime: {
         total: number;
         byYear: { year: number; mode: SavingsMode; saved: number }[];

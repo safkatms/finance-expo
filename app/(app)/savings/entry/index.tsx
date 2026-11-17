@@ -17,13 +17,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Feather from "@expo/vector-icons/Feather";
-import { createSavingsEntry } from "@/lib/api/savings.api";
+import { createSavingsEntry, getSavingsOverview } from "@/lib/api/savings.api";
 import { getAccounts } from "@/lib/api/accounts.api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { colors } from "@/components/ui/theme";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ProgressBar } from "@/components/savings/ProgressBar";
+import { MONTH_NAMES, fmt, shortDate, remainingLabel, progressColor } from "@/components/savings/format";
 
 const schema = z.object({
   type: z.enum(["deposit", "withdraw"]),
@@ -95,6 +97,43 @@ export default function SavingsEntryFormScreen() {
 
   const type = watch("type");
   const entryDate = watch("entryDate");
+  const amountStr = watch("amount");
+
+  // Live target impact — show how this entry moves progress toward the configured targets.
+  // Overview is loaded for the month the entry falls in, so month/week rows match the date.
+  const entryMonth = (() => {
+    const [yy, mm] = entryDate.split("-").map(Number);
+    return `${MONTH_NAMES[mm - 1]}-${yy}`;
+  })();
+
+  const { data: overview } = useQuery({
+    queryKey: ["savings", year, "entry-impact", entryMonth],
+    queryFn: () => getSavingsOverview(year, entryMonth),
+  });
+
+  const amt = !isNaN(parseFloat(amountStr)) && parseFloat(amountStr) > 0 ? parseFloat(amountStr) : 0;
+  const delta = type === "deposit" ? amt : -amt;
+
+  const impactRows = (() => {
+    const plan = overview?.plan;
+    if (!overview || !plan) return [] as { key: string; label: string; saved: number; target: number }[];
+    const rows: { key: string; label: string; saved: number; target: number }[] = [];
+
+    const monthRow = overview.months.find((m) => m.month === entryMonth);
+    if (monthRow && monthRow.target !== null) {
+      rows.push({ key: "This month", label: entryMonth, saved: monthRow.saved, target: monthRow.target });
+    }
+    if (plan.weeklyTarget !== null) {
+      const wk = overview.weeks.find((w) => w.start <= entryDate && entryDate <= w.end);
+      if (wk && wk.target !== null) {
+        rows.push({ key: "This week", label: `${shortDate(wk.start)} – ${shortDate(wk.end)}`, saved: wk.saved, target: wk.target });
+      }
+    }
+    if (overview.yearly && overview.yearly.target !== null) {
+      rows.push({ key: "This year", label: String(year), saved: overview.yearly.saved, target: overview.yearly.target });
+    }
+    return rows;
+  })();
 
   const saveMut = useMutation({
     mutationFn: (d: FormData) =>
@@ -247,6 +286,49 @@ export default function SavingsEntryFormScreen() {
             {errors.amount && <Text style={s.fieldError}>{errors.amount.message}</Text>}
           </View>
 
+          {/* Live target impact */}
+          {impactRows.length > 0 && (
+            <View style={s.field}>
+              <Text style={s.label}>Target impact</Text>
+              <View style={s.impactCard}>
+                {impactRows.map((r) => {
+                  const projected = r.saved + delta;
+                  const pct = r.target > 0 ? Math.min(Math.round((projected / r.target) * 100), 999) : 0;
+                  const below = projected < r.target;
+                  // Neutral progress colour until an amount is entered; red once the entry misses/breaks the target
+                  const tone = delta === 0 ? progressColor(pct) : below ? colors.red[500] : colors.green[600];
+                  const remaining = remainingLabel(projected, r.target);
+                  return (
+                    <View key={r.key} style={s.impactRow}>
+                      <View style={s.impactTop}>
+                        <Text style={s.impactLabel}>
+                          {r.key} · {r.label}
+                        </Text>
+                        <Text style={[s.impactPct, { color: tone }]}>{pct}%</Text>
+                      </View>
+                      <ProgressBar pct={pct} color={tone} height={6} />
+                      <View style={s.impactBottom}>
+                        <Text style={s.impactMeta}>
+                          {fmt(projected)} / {fmt(r.target)}
+                        </Text>
+                        {remaining && (
+                          <Text style={[s.impactMeta, delta !== 0 && below && { color: colors.red[500], fontWeight: "700" }]}>
+                            {remaining}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+                {delta !== 0 && (
+                  <Text style={s.impactNote}>
+                    Projected after this {type === "deposit" ? "deposit" : "withdrawal"}.
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
+
           {/* Account */}
           <View style={s.field}>
             <Text style={s.label}>Account *</Text>
@@ -357,6 +439,22 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   typeBtnLabel: { fontSize: 13, fontWeight: "700", color: colors.gray[500] },
+
+  impactCard: {
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: colors.teal[50],
+    borderRadius: 14,
+    padding: 12,
+    gap: 12,
+  },
+  impactRow: { gap: 5 },
+  impactTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  impactLabel: { fontSize: 12, fontWeight: "700", color: colors.gray[700] },
+  impactPct: { fontSize: 12, fontWeight: "800" },
+  impactBottom: { flexDirection: "row", justifyContent: "space-between" },
+  impactMeta: { fontSize: 11, color: colors.gray[500] },
+  impactNote: { fontSize: 11, color: colors.gray[400], fontStyle: "italic" },
 
   chipRow: { flexDirection: "row", gap: 8 },
   chip: {
