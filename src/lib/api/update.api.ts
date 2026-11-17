@@ -1,6 +1,6 @@
 const GITHUB_OWNER = "safkatms";
 const GITHUB_REPO = "finance-expo";
-const CURRENT_VERSION = "1.8.0";
+const CURRENT_VERSION = "1.8.1";
 const APP_STORE_URL = "https://safkatms.github.io/app-store-site/";
 
 export interface GitHubRelease {
